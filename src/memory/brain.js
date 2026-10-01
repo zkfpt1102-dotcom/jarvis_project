@@ -10,7 +10,7 @@ const localAgent = require('../services/local_agent_executor');
 const homeIoTHub = require('../services/home_iot_hub');
 
 const PROFILE_PATH = path.join(__dirname, 'user_profile.json');
-const CONFIG_PATH = path.join(__dirname, '..', '..', 'config.json');
+const CONFIG_PATH = process.env.JARVIS_CONFIG_PATH || path.join(__dirname, '..', '..', 'config.json');
 
 class JarvisBrain {
   constructor() {
@@ -29,6 +29,11 @@ class JarvisBrain {
       if (fs.existsSync(CONFIG_PATH)) {
         return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
       }
+      // Preserve an existing loose config when switching to a packaged build.
+      const legacyPath = path.join(__dirname, '..', '..', 'config.json');
+      if (CONFIG_PATH !== legacyPath && fs.existsSync(legacyPath)) {
+        return JSON.parse(fs.readFileSync(legacyPath, 'utf-8'));
+      }
     } catch (e) {}
     return { gemini_api_key: "", openai_api_key: "" };
   }
@@ -37,6 +42,7 @@ class JarvisBrain {
     try {
       const current = this.loadConfig();
       const updated = { ...current, ...newConfig };
+      fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), 'utf-8');
       return true;
     } catch (e) {
@@ -1821,4 +1827,3 @@ ${toneContext ? `- 실시간 마이크 음성 톤/뉘앙스 분석: ${toneContex
 }
 
 module.exports = new JarvisBrain();
-

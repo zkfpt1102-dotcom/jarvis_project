@@ -1,8 +1,11 @@
 const { app, BrowserWindow, ipcMain, session, shell, screen, dialog } = require('electron');
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+// Packaged apps cannot write inside app.asar. Keep user settings in AppData.
+if (app.isPackaged) {
+  process.env.JARVIS_CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
+}
 const brain = require('./src/memory/brain');
 
 // Enforce Single Instance Lock to prevent double windows and double voices
@@ -22,7 +25,6 @@ app.on('second-instance', () => {
 });
 
 // Chromium media & performance switches for uninterrupted microphone and YouTube media
-app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
@@ -33,48 +35,6 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 require('./server');
 
 let mainWindow = null;
-let speechBridgeProcess = null;
-
-function launchSpeechBridge() {
-  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-  const chromePathX86 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
-  const bin = fs.existsSync(chromePath) ? chromePath : (fs.existsSync(chromePathX86) ? chromePathX86 : null);
-
-  if (!bin) {
-    console.log('[MAIN] Chrome binary not found for background bridge.');
-    return;
-  }
-
-  const profileDir = path.join(app.getPath('userData'), 'chrome-speech-bridge');
-
-  const args = [
-    `--app=http://localhost:3000/speech-bridge.html`,
-    `--window-position=-9999,-9999`,
-    `--window-size=10,10`,
-    `--use-fake-ui-for-media-stream`,
-    `--autoplay-policy=no-user-gesture-required`,
-    `--no-first-run`,
-    `--no-default-browser-check`,
-    `--disable-gpu`,
-    `--user-data-dir=${profileDir}`
-  ];
-
-  try {
-    speechBridgeProcess = spawn(bin, args, {
-      detached: false,
-      stdio: 'ignore'
-    });
-    console.log('[MAIN] Invisible Background Speech Bridge launched successfully.');
-
-    speechBridgeProcess.on('exit', (code) => {
-      console.log(`[MAIN] Background Speech Bridge exited with code: ${code}`);
-      speechBridgeProcess = null;
-    });
-  } catch (err) {
-    console.error('[MAIN] Failed to launch background speech bridge:', err);
-  }
-}
-
 let currentWindowMode = 'MINI_CIRCLE';
 let isTransitioningMode = false;
 const savedPositions = {
@@ -339,29 +299,13 @@ app.whenReady().then(() => {
   loadSavedPositions();
   configureAutoLaunch();
   createWindow();
-  launchSpeechBridge();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-app.on('before-quit', () => {
-  if (speechBridgeProcess) {
-    try {
-      speechBridgeProcess.kill();
-    } catch (e) {}
-    speechBridgeProcess = null;
-  }
-});
-
 app.on('window-all-closed', () => {
-  if (speechBridgeProcess) {
-    try {
-      speechBridgeProcess.kill();
-    } catch (e) {}
-    speechBridgeProcess = null;
-  }
   if (process.platform !== 'darwin') app.quit();
 });
 

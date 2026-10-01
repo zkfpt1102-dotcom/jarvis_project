@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const CONFIG_PATH = path.join(__dirname, '..', '..', 'config.json');
+const CONFIG_PATH = process.env.JARVIS_CONFIG_PATH || path.join(__dirname, '..', '..', 'config.json');
 
 class SmartThingsOAuthManager {
   constructor() {
@@ -50,6 +50,7 @@ class SmartThingsOAuthManager {
       if (updates.expiresAt !== undefined) cfg.smartthings.token_expires_at = updates.expiresAt;
       if (updates.tvDeviceId !== undefined) cfg.smartthings.tv_device_id = updates.tvDeviceId;
 
+      fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
       this.loadConfig();
       return true;

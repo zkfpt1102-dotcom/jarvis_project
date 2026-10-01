@@ -182,13 +182,13 @@ app.post('/api/stt', async (req, res) => {
     const cfg = brain.loadConfig();
     const apiKey = cfg.gemini_api_key;
     if (!apiKey || apiKey.trim().length < 10) {
-      return res.status(400).json({ error: 'Gemini API key not configured' });
+      return res.status(400).json({ reason: 'api_key_missing', error: 'Gemini API key not configured' });
     }
 
     const cleanBase64 = audio.includes(',') ? audio.split(',')[1] : audio;
     const audioMime = (mimeType || 'audio/webm').split(';')[0];
 
-    const models = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+    const models = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
     let transcript = '';
 
     for (const model of models) {
@@ -247,16 +247,17 @@ app.post('/api/chat-audio', async (req, res) => {
     const cfg = brain.loadConfig();
     const apiKey = cfg.gemini_api_key;
     if (!apiKey || apiKey.trim().length < 10) {
-      return res.status(400).json({ error: 'Gemini API key not configured' });
+      return res.status(400).json({ reason: 'api_key_missing', error: 'Gemini API key not configured' });
     }
 
     const cleanBase64 = audio.includes(',') ? audio.split(',')[1] : audio;
     const audioMime = (mimeType || 'audio/webm').split(';')[0];
     console.log(`[AUDIO INCOMING] Size: ${cleanBase64.length} bytes, Mime: ${audioMime}`);
 
-    const models = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
+    const models = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash'];
     let analysisResult = null;
     let quotaErrorOccurred = false;
+    let modelErrorOccurred = false;
 
     for (const model of models) {
       try {
@@ -315,10 +316,12 @@ app.post('/api/chat-audio', async (req, res) => {
           const errBody = await response.text();
           console.warn(`[AUDIO API ${model} QUOTA EXCEEDED 429]:`, errBody.slice(0, 120));
         } else {
+          modelErrorOccurred = true;
           const errBody = await response.text();
           console.warn(`[AUDIO API ${model} HTTP ${response.status}]:`, errBody.slice(0, 120));
         }
       } catch (err) {
+        modelErrorOccurred = true;
         console.warn(`[AUDIO PIPELINE ERR] ${model}:`, err.message);
       }
     }
@@ -331,6 +334,10 @@ app.post('/api/chat-audio', async (req, res) => {
         success: false,
         reason: 'quota_exceeded'
       });
+    }
+
+    if (modelErrorOccurred && !analysisResult) {
+      return res.status(503).json({ success: false, reason: 'speech_service_unavailable', error: 'Gemini 음성 인식 서비스에 연결하지 못했습니다. API 키와 인터넷 연결을 확인해 주세요.' });
     }
 
     if (!analysisResult || !analysisResult.transcript || analysisResult.transcript.trim().length === 0) {
@@ -744,7 +751,8 @@ app.get('/api/config', (req, res) => {
 app.post('/api/config', (req, res) => {
   try {
     const { gemini_api_key } = req.body;
-    brain.saveConfig({ gemini_api_key: gemini_api_key ? gemini_api_key.trim() : "" });
+    const saved = brain.saveConfig({ gemini_api_key: gemini_api_key ? gemini_api_key.trim() : "" });
+    if (!saved) return res.status(500).json({ success: false, error: '설정 파일을 저장하지 못했습니다.' });
     res.json({ success: true, message: "API 키가 저장되었습니다." });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -908,4 +916,3 @@ server.on('error', (e) => {
     console.error('Server error:', e);
   }
 });
-

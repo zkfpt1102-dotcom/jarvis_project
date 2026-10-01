@@ -8,7 +8,7 @@ const path = require('path');
 const smartthingsClient = require('./smartthings_client');
 const thinqClient = require('./thinq_client');
 
-const CONFIG_PATH = path.join(__dirname, '..', '..', 'config.json');
+const CONFIG_PATH = process.env.JARVIS_CONFIG_PATH || path.join(__dirname, '..', '..', 'config.json');
 
 class HomeIoTHub {
   constructor() {
@@ -81,6 +81,7 @@ class HomeIoTHub {
       if (newIotConfig.lg_thinq) {
         cfg.lg_thinq = { ...(cfg.lg_thinq || {}), ...newIotConfig.lg_thinq };
       }
+      fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
       this.reloadConfig();
       return { success: true };

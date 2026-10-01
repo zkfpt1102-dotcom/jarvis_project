@@ -83,7 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let recognition = null;
   let currentProfile = null;
 
-  try { localStorage.removeItem('jarvis_selected_mic_id'); } catch (e) {}
+  const selectMicrophone = document.getElementById('select-microphone');
+  const btnRefreshMicrophones = document.getElementById('btn-refresh-microphones');
+  const btnTestMicrophone = document.getElementById('btn-test-microphone');
+  const microphoneTestStatus = document.getElementById('microphone-test-status');
+  const desktopMicSettings = document.getElementById('desktop-mic-settings');
+  if (desktopMicSettings && !window.jarvisAPI) desktopMicSettings.style.display = 'none';
+  let selectedMicId = localStorage.getItem('jarvis_selected_mic_id') || '';
 
   // 3-State Dynamic UI Modes: 'STANDBY' | 'MINI_CIRCLE' | 'FULL_DASHBOARD'
   let currentUIMode = window.location.search.includes('boot=1') ? 'STANDBY' : 'MINI_CIRCLE';
@@ -218,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function initMicrophoneStream() {
     // 모바일 기기 및 웹 브라우저에서는 마이크 하드웨어 독점 점유(getUserMedia)를 방지하여
     // 안드로이드 통화/시스템 모드 고착 및 음성인식 충돌을 원천 차단
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    const isMobile = !window.jarvisAPI && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768);
     if (isMobile || !window.jarvisAPI) {
       if (micStream) {
         try { micStream.getTracks().forEach(t => t.stop()); } catch(e) {}
@@ -226,20 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return true;
     }
-    if (micStream) return true;
-    try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaStreamSource(micStream);
-      analyserNode = audioContext.createAnalyser();
-      analyserNode.fftSize = 256;
-      micDataArray = new Uint8Array(analyserNode.frequencyBinCount);
-      source.connect(analyserNode);
-      return true;
-    } catch (err) {
-      console.warn('Microphone permission or hardware error:', err);
-      return false;
-    }
+    return Boolean(await ensureMicStreamForAudio());
   }
 
   // 4. Voice Engine (Continuous Session, Wake Word, STT & TTS)
@@ -599,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    const isMobile = !window.jarvisAPI && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768);
 
     recognition = new SpeechRecognition();
     recognition.lang = 'ko-KR';
@@ -786,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     recognition.onend = () => {
-      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      const isMobile = !window.jarvisAPI && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768);
       // PC 크롬 환경이고 상시 호출 모드이거나 연속 대화 세션 중이라면 백그라운드 자동 루프 유지
       if (!isMobile && !useGeminiAudio && (isWakeWordEnabled || isSessionActive) && !isSpeaking) {
         setTimeout(() => {
@@ -810,6 +803,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let vadInterval = null;
   let silenceStartTimestamp = null;
   let hasDetectedSpeech = false;
+  let micTestInProgress = false;
+  let discardNextRecording = false;
+  let audioPipelineNeedsConfig = false;
 
   async function ensureMicStreamForAudio() {
     if (micStream && micStream.active && analyserNode && isHardwareConfigured) {
@@ -817,53 +813,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      // 1. 기본 마이크 스트림 안전 획득 (에러 발생 시 constraints 완화)
-      let stream = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-        });
-      } catch (e1) {
-        console.warn('Initial mic probe relaxed:', e1);
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true
+      });
 
       if (!stream || !stream.active) {
         statusText.textContent = 'MIC ACCESS REQUIRED';
         return null;
-      }
-
-      // 2. RME Babyface Pro 등 오디오 인터페이스 우선 연결 시도 (실패 시 기본 스트림 유지!)
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const audioInputs = devices.filter(d => d.kind === 'audioinput');
-        const targetDevice = audioInputs.find(d => 
-          /ADAT\s*\(?3\+4\)?/i.test(d.label) || 
-          /마이크\s*\[ADAT/i.test(d.label) ||
-          /Babyface/i.test(d.label) ||
-          /RME/i.test(d.label)
-        );
-
-        if (targetDevice) {
-          const currentTrack = stream.getAudioTracks()[0];
-          const currentId = currentTrack && currentTrack.getSettings ? currentTrack.getSettings().deviceId : null;
-          if (currentId !== targetDevice.deviceId) {
-            try {
-              const specializedStream = await navigator.mediaDevices.getUserMedia({
-                audio: { deviceId: { ideal: targetDevice.deviceId } }
-              });
-              if (specializedStream && specializedStream.active) {
-                stream.getTracks().forEach(t => t.stop());
-                stream = specializedStream;
-                console.log('[AUDIO HARDWARE LOCKED]: Successfully connected to', targetDevice.label);
-              }
-            } catch (specErr) {
-              console.warn('[AUDIO ROUTING FALLBACK]: Keeping active default stream:', specErr.message);
-            }
-          }
-        }
-      } catch (enumErr) {
-        console.warn('Device enumeration notice:', enumErr);
       }
 
       micStream = stream;
@@ -885,16 +841,104 @@ document.addEventListener('DOMContentLoaded', () => {
       source.connect(analyserNode);
 
       isHardwareConfigured = true;
+      const activeTrack = stream.getAudioTracks()[0];
+      if (microphoneTestStatus && activeTrack) microphoneTestStatus.textContent = `연결됨: ${activeTrack.label || '기본 마이크'}`;
+      refreshMicrophoneDevices();
       return micStream;
     } catch (err) {
       console.warn('Cannot acquire audio stream:', err);
-      statusText.textContent = 'MIC ACCESS REQUIRED';
+      const reason = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'
+        ? 'Windows 설정 → 개인정보 및 보안 → 마이크에서 데스크톱 앱 접근을 허용해 주세요.'
+        : err.name === 'NotFoundError' || err.name === 'OverconstrainedError'
+          ? '선택한 마이크를 찾을 수 없습니다. 장치를 다시 연결하거나 기본 마이크를 선택해 주세요.'
+          : `마이크를 열 수 없습니다: ${err.message}`;
+      statusText.textContent = 'MIC ACCESS FAILED';
+      if (microphoneTestStatus) microphoneTestStatus.textContent = reason;
       return null;
     }
   }
 
+  async function refreshMicrophoneDevices() {
+    if (!selectMicrophone || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    try {
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === 'audioinput');
+      selectMicrophone.replaceChildren(new Option('Windows 기본 마이크', ''));
+      devices.forEach((device, index) => {
+        if (device.deviceId && device.deviceId !== 'default' && device.deviceId !== 'communications') {
+          selectMicrophone.add(new Option(device.label || `마이크 ${index + 1}`, device.deviceId));
+        }
+      });
+      if (selectedMicId && !devices.some(device => device.deviceId === selectedMicId)) {
+        selectMicrophone.add(new Option('저장된 마이크 (연결되지 않음)', selectedMicId));
+        if (microphoneTestStatus) microphoneTestStatus.textContent = '저장된 마이크가 연결되지 않았습니다. 다른 장치를 선택해 주세요.';
+      }
+      selectMicrophone.value = selectedMicId;
+      if (!devices.length && microphoneTestStatus) microphoneTestStatus.textContent = '입력 마이크가 없습니다. Windows 입력 장치 설정을 확인해 주세요.';
+    } catch (err) {
+      if (microphoneTestStatus) microphoneTestStatus.textContent = `마이크 목록을 읽지 못했습니다: ${err.message}`;
+    }
+  }
+
+  function releaseMicrophoneStream() {
+    if (geminiMediaRecorder && geminiMediaRecorder.state !== 'inactive') {
+      discardNextRecording = true;
+      stopGeminiAudioRecording();
+    }
+    if (micStream) micStream.getTracks().forEach(track => track.stop());
+    micStream = null;
+    isManualListening = false;
+    isHardwareConfigured = false;
+    if (analyserNode) analyserNode.disconnect();
+    analyserNode = null;
+    micDataArray = null;
+  }
+
+  if (selectMicrophone) {
+    selectMicrophone.addEventListener('change', async () => {
+      micTestInProgress = true;
+      selectedMicId = selectMicrophone.value;
+      localStorage.setItem('jarvis_selected_mic_id', selectedMicId);
+      releaseMicrophoneStream();
+      const stream = await ensureMicStreamForAudio();
+      micTestInProgress = false;
+      if (stream && isWakeWordEnabled && !isSpeaking) startGeminiAudioRecording();
+    });
+  }
+  if (btnRefreshMicrophones) btnRefreshMicrophones.addEventListener('click', refreshMicrophoneDevices);
+  if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', refreshMicrophoneDevices);
+  refreshMicrophoneDevices();
+
+  if (btnTestMicrophone) {
+    btnTestMicrophone.addEventListener('click', async () => {
+      micTestInProgress = true;
+      btnTestMicrophone.disabled = true;
+      if (selectMicrophone) selectMicrophone.disabled = true;
+      releaseMicrophoneStream();
+      const stream = await ensureMicStreamForAudio();
+      if (stream && analyserNode) {
+        let peak = 0;
+        const started = performance.now();
+        while (performance.now() - started < 2500) {
+          analyserNode.getByteTimeDomainData(micDataArray);
+          let sum = 0;
+          for (const sample of micDataArray) sum += ((sample - 128) / 128) ** 2;
+          peak = Math.max(peak, Math.sqrt(sum / micDataArray.length));
+          if (microphoneTestStatus) microphoneTestStatus.textContent = `말씀해 보세요 · 입력 레벨 ${Math.min(100, Math.round(peak * 5000))}%`;
+          await new Promise(resolve => setTimeout(resolve, 80));
+        }
+        if (microphoneTestStatus) microphoneTestStatus.textContent = peak > 0.002
+          ? `입력 확인됨 · 최대 레벨 ${Math.min(100, Math.round(peak * 5000))}%`
+          : '입력 소리가 감지되지 않았습니다. Windows 입력 음량과 선택한 마이크를 확인해 주세요.';
+      }
+      micTestInProgress = false;
+      btnTestMicrophone.disabled = false;
+      if (selectMicrophone) selectMicrophone.disabled = false;
+      if (stream && isWakeWordEnabled && !isSpeaking) startGeminiAudioRecording();
+    });
+  }
+
   async function startGeminiAudioRecording() {
-    if (isSpeaking) return;
+    if (isSpeaking || micTestInProgress || audioPipelineNeedsConfig) return;
     // 백그라운드 Speech Bridge가 연결되어 활성화된 상태이고 수동 PTT가 아니면 중복 녹음 방지 (API 503 방지)
     if (isBridgeConnected && !isManualListening) {
       isGeminiStarting = false;
@@ -940,6 +984,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (vadInterval) {
           clearInterval(vadInterval);
           vadInterval = null;
+        }
+
+        if (discardNextRecording) {
+          discardNextRecording = false;
+          geminiAudioChunks = [];
+          return;
         }
 
         const wasManual = isManualListening;
@@ -1091,6 +1141,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
         console.log('[AUDIO PIPELINE RESPONSE]:', JSON.stringify(data));
+
+        if (data.reason === 'api_key_missing') {
+          audioPipelineNeedsConfig = true;
+          statusText.textContent = 'Gemini API 키를 설정해 주세요';
+          coreStateText.textContent = 'SETUP';
+          appendMessage('J.A.R.V.I.S.', '음성 인식에 Gemini API 키가 필요합니다. 관리창의 AI 두뇌 설정에서 키를 저장해 주세요.', 'jarvis-msg');
+          return;
+        }
+        if (data.reason === 'speech_service_unavailable') {
+          statusText.textContent = '음성 인식 서비스 연결 실패';
+          appendMessage('J.A.R.V.I.S.', data.error, 'jarvis-msg');
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || `음성 처리 오류 (${res.status})`);
 
         if (data.reason === 'quota_exceeded') {
           if (data.reply && data.reply.trim().length > 0) {
@@ -4021,7 +4085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnOpenAISettings.textContent = '🧠 AI 두뇌 설정';
         btnOpenAISettings.style.borderColor = '#ffaa00';
         btnOpenAISettings.style.color = '#ffaa00';
-        aiKeyStatus.textContent = '현재 내장 스마트 엔진 가동 중 (API 키 입력 시 Gemini 초거대 AI로 전환)';
+        aiKeyStatus.textContent = '텍스트 명령은 사용할 수 있습니다. 음성 인식에는 Gemini API 키가 필요합니다.';
       }
     } catch (e) {}
   }
@@ -4061,10 +4125,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
         if (data.success) {
-          alert('✅ Gemini AI 키가 성공적으로 등록되었습니다! 이제 자비스와 무제한 실시간 대화가 가능합니다.');
+          audioPipelineNeedsConfig = false;
+          alert('✅ Gemini AI 키가 저장되었습니다. 음성 인식을 사용할 수 있습니다.');
           inputGeminiKey.value = '';
           aiSettingsModal.classList.remove('active');
           checkAIConfig();
+          if (isWakeWordEnabled && !isSpeaking) startGeminiAudioRecording();
+        } else {
+          alert(`저장 실패: ${data.error || '알 수 없는 오류'}`);
         }
       } catch (err) {
         alert(`저장 실패: ${err.message}`);
@@ -4330,7 +4398,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileTopInstallBanner = document.getElementById('mobile-top-install-banner');
   const btnTopPwaInstall = document.getElementById('btn-top-pwa-install');
   const btnMiniPwaInstall = document.getElementById('btn-mini-pwa-install');
-  const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  const isMobileDevice = !window.jarvisAPI && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768);
 
   // Register PWA Service Worker only on mobile devices (prevents stale desktop caching)
   if ('serviceWorker' in navigator) {
@@ -4592,10 +4660,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Connect to Invisible Background Speech Bridge
-  initSpeechBridgeStream();
+  if (!window.jarvisAPI) initSpeechBridgeStream();
 
   // Auto-start continuous wake word listening on launch / first interaction
-  const isMobileClient = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  const isMobileClient = !window.jarvisAPI && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768);
   if (isWakeWordEnabled && !isMobileClient) {
     updateWakeWordButtonUI();
     setTimeout(() => {
@@ -4623,4 +4691,3 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.addEventListener('click', resumeWakeListenerOnGesture);
 });
-

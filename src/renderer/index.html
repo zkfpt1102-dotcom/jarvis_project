@@ -293,6 +293,17 @@
           </div>
 
           <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+            <div id="desktop-mic-settings">
+              <label for="select-microphone" style="font-size:12px; color:var(--border-cyan); font-weight:700; display:block; margin-bottom:6px;">입력 마이크:</label>
+              <div style="display:flex; gap:8px;">
+                <select id="select-microphone" class="hud-text-input hud-mic-select" style="flex:1; min-width:0; cursor:pointer; background:rgba(8,16,32,0.95); color:#fff;">
+                  <option value="">기본 마이크</option>
+                </select>
+                <button id="btn-refresh-microphones" class="hud-send-btn" type="button">새로고침</button>
+                <button id="btn-test-microphone" class="hud-send-btn" type="button">입력 테스트</button>
+              </div>
+              <div id="microphone-test-status" role="status" style="font-size:11px; color:#cbeeff; margin-top:7px;">Windows 마이크 접근 권한을 허용해 주세요.</div>
+            </div>
             <div>
               <label style="font-size:12px; color:var(--border-cyan); font-weight:700; display:block; margin-bottom:6px;">보이스 모델 (Voice Engine):</label>
               <select id="select-voice" class="hud-text-input" style="width:100%; cursor:pointer; background:rgba(8,16,32,0.95); color:#fff;">
