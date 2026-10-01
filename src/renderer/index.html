@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#020813">
+  <link rel="manifest" href="manifest.json">
+  <title>JARVIS - Personal AI Assistant</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="cyber-body mode-mini-circle">
+  <!-- 0. Standby Floating Ambient Pill (STANDBY Mode) -->
+  <div id="standby-pill" class="standby-pill" style="display:none;" title="'하이 자비스' 또는 '자비스'">
+    <span class="standby-dot"></span>
+    <span class="standby-label">J.A.R.V.I.S. STANDBY</span>
+    <span class="standby-hint">('하이 자비스' / '자비스')</span>
+  </div>
+
+  <!-- 1. Central Floating Arc Reactor HUD Overlay (MINI_CIRCLE Mode) -->
+  <div id="jarvis-mini-overlay" class="jarvis-mini-overlay">
+    <div class="mini-hud-container">
+      <div class="mini-reactor-wrap" id="mini-reactor-trigger" title="더블 클릭 시 관리창 열기 ('관리창 열어줘')">
+        <div class="mini-ring mini-ring-outer"></div>
+        <div class="mini-ring mini-ring-mid"></div>
+        <div class="mini-ring mini-ring-inner"></div>
+        <div class="mini-core" id="mini-reactor-core">
+          <div class="mini-core-triangle"></div>
+          <div class="mini-core-glow"></div>
+          <div class="mini-core-text" id="mini-core-state-text">JARVIS</div>
+        </div>
+      </div>
+
+      <!-- Real-time Mic Input Visualizer Wave -->
+      <div class="mini-visualizer-box">
+        <canvas id="mini-wave-canvas" width="320" height="44"></canvas>
+      </div>
+
+      <!-- Status Indicator Pill -->
+      <div class="mini-status-pill" id="mini-status-pill">
+        <span class="mini-pulse-dot"></span>
+        <span id="mini-status-text">🟢 듣고 있습니다 ("스팀 켜줘", "관리창 열어줘")</span>
+      </div>
+
+      <!-- Live Voice Subtitle Box -->
+      <div class="mini-caption-box" id="mini-caption-box" style="display:none;">
+        <span id="mini-caption-speaker" class="caption-speaker">USER</span>
+        <span id="mini-caption-text" class="caption-text"></span>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="mini-action-bar">
+        <button id="btn-mini-open-dashboard" class="mini-action-btn" title="'관리창 열어줘'라고 말씀하셔도 열립니다">📋 관리창 열기</button>
+        <button id="btn-mini-pwa-install" class="mini-action-btn" style="display:none; border-color:#00ffaa; color:#00ffaa;" title="홈 화면에 자비스 앱 설치">📲 앱 설치</button>
+        <button id="btn-mini-end-session" class="mini-action-btn exit-btn" title="'바이 자비스'">✕ 대화 종료</button>
+      </div>
+
+      <!-- Mobile & Mini Chat Input Bar -->
+      <div class="mini-chat-bar" id="mini-chat-bar">
+        <input type="text" id="mini-text-input" class="hud-text-input" placeholder="질문이나 명령 입력 (엔터 전송)..." autocomplete="off">
+        <button id="btn-mini-send" class="mini-send-btn">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Full Management Dashboard Window (FULL_DASHBOARD Mode) -->
+  <div class="hud-window" id="hud-window">
+    <!-- Top Mobile PWA Install Banner (Visible on Mobile / HTTPS) -->
+    <div id="mobile-top-install-banner" class="mobile-top-install-banner" style="display:none;">
+      <div class="mobile-install-info">
+        <span class="mobile-install-icon">🤖</span>
+        <div>
+          <strong style="color:#00ffaa; font-size:12px;">J.A.R.V.I.S. 안드로이드 앱 설치</strong>
+          <div style="color:#7da5c4; font-size:10px;">스마트폰 홈 화면에 자비스 전용 앱으로 설치하기</div>
+        </div>
+      </div>
+      <button id="btn-top-pwa-install" class="mobile-install-btn">📲 바로 설치</button>
+    </div>
+
+    <!-- 1. Custom Draggable Titlebar -->
+    <header class="hud-titlebar">
+      <div class="brand-zone">
+        <span class="reactor-mini-icon"></span>
+        <span class="hud-brand-title">J.A.R.V.I.S.</span>
+        <span class="hud-sub-label">STARK INDUSTRIES // PERSONAL OS</span>
+      </div>
+      <div class="clock-zone" id="system-clock">00:00:00</div>
+      <div class="window-controls">
+        <button id="btn-switch-to-circle-win" class="win-btn" title="원형 모드로 전환 ('관리창 닫아줘')">🔘</button>
+        <button id="btn-pin" class="win-btn pin-btn" title="항상 위에 고정">📌</button>
+        <button id="btn-minimize" class="win-btn" title="최소화">─</button>
+        <button id="btn-maximize" class="win-btn" title="최대화">□</button>
+        <button id="btn-close" class="win-btn close-btn" title="닫기">✕</button>
+      </div>
+    </header>
+
+    <!-- Notice banner for file:// protocol -->
+    <div id="protocol-banner" style="display:none; background:rgba(255, 184, 0, 0.2); border-bottom:1px solid #ffb800; padding:6px 16px; font-size:12px; color:#ffdd88; justify-content:space-between; align-items:center;">
+      <span>⚠️ 크롬 보안 정책상 <strong>file://</strong> 에서는 마이크가 차단됩니다. 마이크 음성 인식을 위해 <strong>localhost:3000</strong> 으로 접속해 주십시오.</span>
+      <a href="http://localhost:3000" style="background:#ffb800; color:#000; padding:3px 10px; border-radius:4px; text-decoration:none; font-weight:700; font-size:11px;">http://localhost:3000 이동 ➔</a>
+    </div>
+
+    <!-- 2. User Mood & Personality Sync Monitor Bar -->
+    <section class="user-sync-bar">
+      <div class="sync-item mood-badge">
+        <span class="sync-icon">🧠</span>
+        <span class="sync-label">개발자님 컨디션:</span>
+        <span class="sync-value" id="user-mood-val">집중 모드 (Focused)</span>
+      </div>
+      <div class="sync-item energy-badge">
+        <span class="sync-label">에너지:</span>
+        <div class="energy-bar-track">
+          <div class="energy-bar-fill" id="user-energy-bar" style="width: 85%;"></div>
+        </div>
+        <span class="energy-text" id="user-energy-val">85%</span>
+      </div>
+      <div class="sync-item habit-badge" title="최근 학습된 사용자 성향">
+        <span class="sync-icon">✨</span>
+        <span class="sync-label">학습된 스타일:</span>
+        <span class="sync-value" id="user-style-val">핵심 위주, 신속한 실행</span>
+      </div>
+      <div class="sync-actions" style="display:flex; gap:6px;">
+        <button id="btn-switch-to-circle" class="btn-memory" style="border-color:#00f0ff; color:#00f0ff;" title="원형 모드로 전환 ('관리창 닫아줘')">🔘 원형 모드</button>
+        <button id="btn-toggle-autolaunch" class="btn-memory" style="border-color:#ffb800; color:#ffb800;" title="부팅 시 자동실행 켜기/끄기">🖥️ 부팅 자동실행: ON</button>
+        <button id="btn-open-mobile" class="btn-memory" style="border-color:#ff00ea; color:#ff00ea;" title="스마트폰/안드로이드 접속 주소 확인">📱 모바일 연동</button>
+        <button id="btn-open-directives" class="btn-memory" style="border-color:#00f0ff; color:#00f0ff;" title="말씀으로 자비스에게 부여한 실시간 자가 학습 규칙">🧠 자가 학습 규칙</button>
+        <button id="btn-session-badge" class="btn-memory" style="display:none; border-color:#00ffaa; color:#00ffaa; background:rgba(0,255,170,0.18); font-weight:700;" title="클릭 시 연속 대화 세션 종료 (바이 자비스)">🟢 연속 대화 중 [종료]</button>
+        <button id="btn-toggle-wakeword" class="btn-memory btn-wakeword active" style="border-color:#ffd700; color:#ffd700;" title="'하이 자비스' 또는 '자비스'를 말하면 마이크 버튼을 누르지 않아도 즉시 응답합니다">⚡ 호출 대기: ON</button>
+        <button id="btn-open-voice-settings" class="btn-memory" style="border-color:#00f0ff; color:#00f0ff;" title="자비스 목소리 및 TTS 변경">🎙️ 보이스 설정</button>
+        <button id="btn-open-ai-settings" class="btn-memory" style="border-color:#00ffaa; color:#00ffaa;" title="Gemini AI 두뇌 연동">🧠 AI 두뇌 설정</button>
+        <button id="btn-open-memory" class="btn-memory" title="자비스가 기억한 내 정보 보기">기억 저장소 ⚙️</button>
+      </div>
+    </section>
+
+    <!-- 3. Main HUD Body Area -->
+    <main class="hud-main-content">
+      <!-- Left / Center: Arc Reactor & Voice Visualizer Core -->
+      <div class="core-section">
+        <div class="reactor-container">
+          <!-- Animated Concentric Rings -->
+          <div class="reactor-ring ring-outer"></div>
+          <div class="reactor-ring ring-mid"></div>
+          <div class="reactor-ring ring-inner"></div>
+          <div class="reactor-core" id="reactor-core">
+            <div class="core-triangle"></div>
+            <div class="core-glow"></div>
+            <div class="core-text" id="core-state-text">JARVIS</div>
+          </div>
+        </div>
+
+        <!-- Audio Waveform Canvas -->
+        <canvas id="audio-wave-canvas" width="400" height="60"></canvas>
+
+        <div class="system-status-pill" id="system-status-pill">
+          <span class="pulse-dot"></span>
+          <span id="status-text">SYSTEM ONLINE: STANDBY</span>
+        </div>
+
+        <!-- Quick Directive Chips -->
+        <div class="quick-chips">
+          <button class="chip-btn" data-query="유튜브 새 창으로 열어줘">🌐 유튜브 열기</button>
+          <button class="chip-btn" data-query="메모장 실행해줘">📝 메모장 실행</button>
+          <button class="chip-btn" data-query="이번 주 중요 일정표 만들어줘">📊 업무 일정표</button>
+          <button class="chip-btn" data-query="A안과 B안 전략 비교 차트 그려줘">📈 A/B 비교 차트</button>
+          <button class="chip-btn" data-query="내 컴퓨터 하드웨어 상태 진단해줘">💻 PC 상태 진단</button>
+          <button class="chip-btn" data-query="오늘 좀 피곤한데 간단히 브리핑해줘">☕ 피로 맞춤 브리핑</button>
+        </div>
+      </div>
+
+      <!-- Right: Dynamic Widget Workspace (On-Demand Spawn) & Terminal -->
+      <div class="workspace-section">
+        <!-- Dynamic On-Demand Widget Area -->
+        <div class="dynamic-widget-area" id="dynamic-widget-area">
+          <div class="widget-empty-state" id="widget-empty-state">
+            <div class="empty-icon">⚡</div>
+            <p><strong>동적 온디맨드 위젯 대기 중</strong></p>
+            <span>"표 만들어줘", "유튜브 열어줘", "메모장 실행해줘", "컴퓨터 상태 어때" 처럼 말씀하시면 화면에 즉시 생성됩니다.</span>
+          </div>
+          <div id="dynamic-widget-mount"></div>
+        </div>
+
+        <!-- Conversation & Voice Terminal -->
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span class="terminal-title">COMMUNICATION FEED</span>
+            <div class="terminal-actions">
+              <button id="btn-toggle-voice" class="toggle-voice-btn active" title="자비스 음성 출력 켜기/끄기">🔊 음성 ON</button>
+              <button id="btn-clear-feed" class="clear-btn" title="대화 내용 지우기">지우기</button>
+            </div>
+          </div>
+
+          <div class="messages-feed" id="messages-feed">
+            <div class="msg-bubble jarvis-msg">
+              <div class="msg-meta"><span class="agent-tag">J.A.R.V.I.S.</span> <span class="time-tag">방금</span></div>
+              <div class="msg-text">안녕하십니까 개발자님, 자비스 대기 중입니다. "하이 자비스"라고 부르시면 마이크 버튼을 누르지 않아도 상시 감지되어 즉시 응답합니다. 원하시는 작업이나 웹사이트 열기 등을 편하게 말씀해 주십시오.</div>
+            </div>
+          </div>
+
+          <!-- Bottom Voice & Text Input Bar -->
+          <div class="hud-input-bar">
+            <button id="btn-mic" class="mic-btn" title="음성 인식 시작/중지">
+              <span class="mic-icon">🎙️</span>
+              <span class="mic-pulse-ring"></span>
+            </button>
+            <button id="btn-camera" class="cam-btn" title="스마트폰 카메라 촬영 / 이미지 비전 분석" style="background:rgba(0,240,255,0.1); border:1px solid rgba(0,240,255,0.4); border-radius:50%; width:38px; height:38px; color:#00f0ff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.2s ease;">
+              <span>📷</span>
+            </button>
+            <input type="file" id="file-camera-input" accept="image/*" capture="environment" style="display:none">
+            <input type="text" id="text-input" class="hud-text-input" placeholder="명령을 입력하거나 마이크로 말씀하십시오..." autocomplete="off">
+            <button id="btn-send" class="hud-send-btn">전송</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 4. Memory & Profile Inspector Modal -->
+    <div class="modal-overlay" id="memory-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>🧠 JARVIS PERSISTENT MEMORY (사용자 학습 저장소)</h3>
+          <button id="btn-close-memory" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="memory-section">
+            <h4>기본 페르소나 및 성향</h4>
+            <div class="memory-grid">
+              <div><strong>호칭:</strong> <span id="mem-user-name">개발자님</span></div>
+              <div><strong>선호 보고 스타일:</strong> <span id="mem-user-style">핵심 위주, 신속한 실행</span></div>
+              <div><strong>상세도:</strong> <span id="mem-conciseness">높음 (두괄식)</span></div>
+              <div><strong>어조 선호:</strong> <span>품격 있는 영국식 집사 어조</span></div>
+            </div>
+          </div>
+          <div class="memory-section">
+            <h4>자비스가 대화 중 스스로 학습한 습관/선호</h4>
+            <ul id="mem-learned-habits" class="habits-list">
+              <li>개발자님께서 간결하고 핵심 위주의 보고 방식을 선호하심을 기억함</li>
+              <li>불필요한 고정 지표 대신 즉석에서 표와 데이터를 생성하는 것을 선호함</li>
+              <li>독립 실행형 윈도우 프로그램을 선호함</li>
+            </ul>
+          </div>
+          <div class="memory-section">
+            <h4>최근 상태 기록 로그</h4>
+            <div id="mem-logs" class="logs-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. AI Brain Settings Modal -->
+    <div class="modal-overlay" id="ai-settings-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚡ JARVIS AI 두뇌 설정 (GEMINI API)</h3>
+          <button id="btn-close-ai-settings" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px; line-height:1.6;">
+            Google Gemini API 키를 입력하시면 자비스가 실시간 초거대 생성형 AI로 전환되어 <strong>어떤 질문이든 막힘없이 깊이 있는 대화와 지능형 분석</strong>을 수행합니다. (Google AI Studio에서 무료로 10초 만에 발급 가능)
+          </p>
+          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+            <label style="font-size:12px; color:var(--border-cyan); font-weight:700;">Google Gemini API Key:</label>
+            <input type="password" id="input-gemini-key" class="hud-text-input" placeholder="AIzaSy..." style="width:100%;">
+            <div id="ai-key-status" style="font-size:11px; color:#00ffaa;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px; color:var(--accent-gold); text-decoration:underline;">Google AI Studio에서 무료 키 받기 ➔</a>
+            <div style="display:flex; gap:8px;">
+              <button id="btn-clear-key" class="hud-send-btn" style="border-color:#ff3b5c; color:#ff3b5c;">초기화</button>
+              <button id="btn-save-key" class="hud-send-btn">저장 및 적용</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Voice & TTS Settings Modal -->
+    <div class="modal-overlay" id="voice-settings-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>🎙️ JARVIS 보이스 & TTS 모델 설정</h3>
+          <button id="btn-close-voice-settings" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:12px; color:var(--text-dim); margin-bottom:10px; line-height:1.5;">
+            자비스의 음성 합성 모델과 톤을 자유롭게 변경할 수 있습니다. 시스템에 설치된 고음질 자연어 보이스 중 가장 마음에 드는 목소리를 선택하십시오.
+          </p>
+          <div style="background:rgba(0,240,255,0.08); border-left:3px solid var(--border-cyan); padding:8px 10px; font-size:11px; color:#cbeeff; line-height:1.5; margin-bottom:14px; border-radius:3px;">
+            💡 <strong>자비스 추천 가이드</strong>: <strong>[Microsoft InJoon]</strong>은 차분하고 진중한 한국어 남성 AI 집사 목소리로 영화 원작의 자비스 느낌을 가장 완벽하게 재현합니다. <strong>[Microsoft Hyunsu]</strong>(현대적 남성), <strong>[Microsoft Ryan]</strong>(아이언맨 원작 영국식 영어), <strong>[Microsoft Sun-Hi]</strong>(여성 AI)도 선택하실 수 있습니다!
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+            <div>
+              <label style="font-size:12px; color:var(--border-cyan); font-weight:700; display:block; margin-bottom:6px;">보이스 모델 (Voice Engine):</label>
+              <select id="select-voice" class="hud-text-input" style="width:100%; cursor:pointer; background:rgba(8,16,32,0.95); color:#fff;">
+                <option value="">보이스 불러오는 중...</option>
+              </select>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                  <span style="color:var(--text-dim);">음높이 (Pitch):</span>
+                  <span id="label-pitch-val" style="color:var(--border-cyan); font-weight:700;">0.95</span>
+                </div>
+                <input type="range" id="range-voice-pitch" min="0.5" max="1.5" step="0.05" value="0.95" style="width:100%;">
+              </div>
+
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                  <span style="color:var(--text-dim);">말하기 속도 (Rate):</span>
+                  <span id="label-rate-val" style="color:var(--border-cyan); font-weight:700;">1.05</span>
+                </div>
+                <input type="range" id="range-voice-rate" min="0.7" max="1.5" step="0.05" value="1.05" style="width:100%;">
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button id="btn-test-voice" class="hud-send-btn" style="border-color:#ffb800; color:#ffb800;">🔊 목소리 미리듣기</button>
+            <button id="btn-save-voice" class="hud-send-btn">설정 저장 및 적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Mobile & Android Connection Modal -->
+    <div class="modal-overlay" id="mobile-modal">
+      <div class="modal-card" style="width: 600px;">
+        <div class="modal-header">
+          <h3>📱 스마트폰(안드로이드/iOS) & 외부 접속 (LTE/5G)</h3>
+          <button id="btn-close-mobile" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Direct PWA Install Prompt Button (visible when accessed via mobile browser) -->
+          <div id="pwa-install-banner" style="display:none; background:linear-gradient(90deg, rgba(0,255,170,0.2) 0%, rgba(0,240,255,0.2) 100%); border:1px solid #00ffaa; border-radius:8px; padding:12px; margin-bottom:14px; text-align:center;">
+            <div style="font-size:13px; font-weight:700; color:#00ffaa; margin-bottom:6px;">✨ 안드로이드 앱 설치 준비 완료!</div>
+            <p style="font-size:11px; color:#ddd; margin-bottom:10px;">스마트폰 홈 화면에 자비스를 독립 네이티브 앱으로 설치하여 언제든 터치 한 번으로 실행할 수 있습니다.</p>
+            <button id="btn-pwa-install" class="hud-send-btn" style="background:#00ffaa; color:#000; font-weight:800; padding:8px 20px; font-size:13px; cursor:pointer;">📲 자비스 앱 설치하기</button>
+          </div>
+
+          <!-- Section 1: Outside Home (LTE / 5G & HTTPS PWA) -->
+          <div style="background:rgba(0, 240, 255, 0.08); border:1px solid var(--border-cyan); border-radius:8px; padding:14px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:12px; font-weight:800; color:var(--border-cyan); letter-spacing:0.5px;">🌍 집 밖 (LTE / 5G) & 안드로이드 앱 설치 전용 (HTTPS)</span>
+              <span id="tunnel-status-badge" style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(0,255,170,0.2); color:#00ffaa; font-weight:700;">🟢 전 세계 접속 가능</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="text" id="tunnel-url-input" class="hud-text-input" readonly value="보안 HTTPS 주소 연결 중..." style="flex:1; font-weight:700; color:#00ffaa; font-family:var(--font-hud); font-size:13px;">
+              <button id="btn-copy-tunnel" class="hud-send-btn" style="white-space:nowrap;">📋 주소 복사</button>
+              <button id="btn-refresh-tunnel" class="hud-send-btn" style="white-space:nowrap; border-color:#ffb800; color:#ffb800;" title="새 보안 주소 재발급">🔄 갱신</button>
+            </div>
+            <div style="font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.5;">
+              ✅ <strong>보안 암호화(HTTPS) 제공</strong>: 와이파이 없이 지하철, 카페, 야외 LTE/5G에서도 컴퓨터에 연결된 자비스를 실시간으로 제어할 수 있습니다.
+            </div>
+          </div>
+
+          <!-- Section 2: Inside Home (Local Wi-Fi) -->
+          <div style="background:rgba(255, 255, 255, 0.03); border:1px solid rgba(255, 255, 255, 0.1); border-radius:8px; padding:12px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:12px; font-weight:700; color:#aaa;">🏠 집 안 (같은 Wi-Fi 접속 시)</span>
+              <span style="font-size:10px; color:#888;">내부 공유기 전용</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="text" id="local-ip-input" class="hud-text-input" readonly value="http://192.168.50.177:3000" style="flex:1; font-size:12px; color:#fff;">
+              <button id="btn-copy-local" class="hud-send-btn" style="white-space:nowrap; border-color:#888; color:#aaa;">복사</button>
+            </div>
+          </div>
+
+          <!-- Section 3: Android PWA Troubleshooting & Solution Guide -->
+          <div style="background:rgba(255, 184, 0, 0.08); border-left:3px solid var(--accent-gold); padding:10px 12px; font-size:11px; color:#ffe699; line-height:1.6; border-radius:4px;">
+            💡 <strong>안드로이드 크롬에서 "앱 설치 안 됨" 해결법</strong>:<br>
+            • 구글 크롬은 보안(HTTPS) 연결이 아닌 사설 IP(http://192.168...)에서는 앱 설치 기능을 엄격히 차단합니다.<br>
+            • 따라서 <strong>위 [🌍 집 밖 보안 HTTPS 주소]</strong>로 스마트폰에서 접속하십시오!<br>
+            • 접속 후 크롬 우측 상단 <strong>[ ⋮ (메뉴)]</strong> ➔ <strong>[앱 설치]</strong> 또는 <strong>[홈 화면에 추가]</strong>를 누르시면 스마트폰에 자비스 전용 앱이 완벽하게 설치됩니다!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. Self-Modifying Directives Modal -->
+    <div class="modal-overlay" id="directives-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>🧠 실시간 자가 학습 동작 규칙</h3>
+          <button id="btn-close-directives" class="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px; line-height:1.5;">
+            개발자님께서 평소 자비스에게 말씀하신 지시사항("~하지 마", "앞으로 ~해줘" 등)을 스스로 분석하여 런타임에 직접 각인한 실시간 규칙 목록입니다.
+          </p>
+          <div id="directives-list-container" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Desktop / Local Electron: Purge stale service worker and caches to ensure latest code execution
+    if (window.jarvisAPI || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let reg of registrations) {
+            reg.unregister();
+            console.log('[CACHE CLEAN] Unregistered stale service worker:', reg);
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(keys => {
+          for (let key of keys) {
+            caches.delete(key);
+            console.log('[CACHE CLEAN] Deleted stale cache:', key);
+          }
+        });
+      }
+    }
+  </script>
+  <script src="capacitor.js"></script>
+  <script src="mobile-bridge.js"></script>
+  <script src="app.js?v=20260919_v10"></script>
+</body>
+</html>

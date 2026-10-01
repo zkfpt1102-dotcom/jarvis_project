@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUANTUM FIREWORK SYSTEM v4.0</title>
+    <!-- Google Fonts for Futuristic Tech Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Three.js and OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-blue: #0072ff;
+            --neon-pink: #ff007f;
+            --dark-bg: #020208;
+            --panel-bg: rgba(6, 10, 25, 0.75);
+            --border-glow: rgba(0, 240, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+            font-family: 'Orbitron', sans-serif;
+            color: #ffffff;
+        }
+
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* --- JARVIS HUD Overlay --- */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            box-shadow: inset 0 0 100px rgba(0, 114, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 25px;
+        }
+
+        /* Interactive elements need pointer-events */
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Tech Borders & Corners */
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--neon-cyan);
+            pointer-events: none;
+        }
+        .top-left { top: 15px; left: 15px; border-right: none; border-bottom: none; }
+        .top-right { top: 15px; right: 15px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: 15px; left: 15px; border-right: none; border-top: none; }
+        .bottom-right { bottom: 15px; right: 15px; border-left: none; border-top: none; }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .title-container {
+            background: var(--panel-bg);
+            padding: 15px 25px;
+            border-left: 4px solid var(--neon-cyan);
+            border-radius: 0 8px 8px 0;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(0, 240, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 0 0 10px var(--neon-cyan);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--neon-cyan);
+            letter-spacing: 2px;
+        }
+
+        /* Telemetry Stats */
+        .telemetry {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-glow);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            min-width: 220px;
+            backdrop-filter: blur(10px);
+        }
+
+        .telemetry-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .telemetry-label {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .telemetry-value {
+            color: var(--neon-cyan);
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+        }
+
+        /* Control Panel (Bottom Left) */
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 8px;
+            padding: 20px;
+            width: 320px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-top: auto;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            padding-bottom: 8px;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+        }
+
+        /* Custom Styled Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        /* Buttons & Toggles */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .hud-btn {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .hud-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+        }
+
+        .hud-btn.active {
+            background: var(--neon-pink);
+            border-color: var(--neon-pink);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.6);
+        }
+
+        /* Audio Indicator & Instructions */
+        .footer-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 15px;
+        }
+
+        .instructions {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            max-width: 400px;
+            line-height: 1.4;
+        }
+
+        .audio-control {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            z-index: 100;
+        }
+
+        /* Scanline effect */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.06),
+                rgba(0, 255, 0, 0.02),
+                rgba(0, 0, 255, 0.06)
+            );
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.4;
+        }
+
+        /* Crosshair in center */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-cyan);
+        }
+        .crosshair::before { top: 19px; left: 0; width: 40px; height: 2px; }
+        .crosshair::after { top: 0; left: 19px; width: 2px; height: 40px; }
+
+        /* Responsive UI */
+        @media (max-width: 768px) {
+            .hud-overlay {
+                padding: 15px;
+                flex-direction: column;
+                justify-content: flex-start;
+                gap: 15px;
+                overflow-y: auto;
+            }
+            .control-panel {
+                width: 100%;
+                margin-top: 10px;
+            }
+            .telemetry {
+                display: none; /* Hide on mobile to save space */
+            }
+            .audio-control {
+                position: static;
+                margin-top: 10px;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div id="webgl-container"></div>
+
+    <!-- HUD Overlay -->
+    <div class="hud-overlay">
+        <!-- Tech Corners -->
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+
+        <!-- Top Panel -->
+        <header>
+            <div class="title-container">
+                <h1>QUANTUM ENGINE</h1>
+                <div class="subtitle">3D PARTICLE SIMULATOR v4.0</div>
+            </div>
+
+            <!-- Telemetry Data -->
+            <div class="telemetry">
+                <div class="telemetry-row">
+                    <span class="telemetry-label">SYS STATUS:</span>
+                    <span class="telemetry-value" style="color: #39ff14;">ONLINE</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">ACTIVE PARTICLES:</span>
+                    <span class="telemetry-value" id="part-count">0</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">FPS:</span>
+                    <span class="telemetry-value" id="fps-val">60</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">GRAVITY FIELD:</span>
+                    <span class="telemetry-value" id="grav-val">9.8 m/s²</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="crosshair"></div>
+
+        <!-- Bottom Controls -->
+        <div class="control-panel interactive">
+            <div class="panel-title">System Parameters</div>
+            
+            <!-- Particle Count Slider -->
+            <div class="control-group">
+                <div class="control-label">
+                    <span>EXPLOSION DENSITY</span>
+                    <span id="density-lbl">600</span>
+                </div>
+                <input type="range" id="param-density" min="100" max="1500" step="50" value="600">
+            </div>
+
+            <!-- Explosion Power Slider -->
+            <div class="control-group">
+                <div class="control-label">
+                    <span>QUANTUM FORCE</span>
+                    <span id="force-lbl">1.5</span>
+                </div>
+                <input type="range" id="param-force" min="0.5" max="3.0" step="0.1" value="1.5">
+            </div>
+
+            <!-- Gravity Slider -->
+            <div class="control-group">
+                <div class="control-label">
+                    <span>GRAVITY INFLUENCE</span>
+                    <span id="gravity-lbl">1.2</span>
+                </div>
+                <input type="range" id="param-gravity" min="-0.5" max="3.0" step="0.1" value="1.2">
+            </div>
+
+            <!-- Theme Selector -->
+            <div class="control-group">
+                <div class="control-label">COLOR SCHEME</div>
+                <div class="btn-grid">
+                    <button class="hud-btn active" onclick="setTheme('NEON')">NEON</button>
+                    <button class="hud-btn" onclick="setTheme('CYBER')">CYBERPUNK</button>
+                    <button class="hud-btn" onclick="setTheme('GOLD')">GOLD RUSH</button>
+                    <button class="hud-btn" onclick="setTheme('COSMIC')">COSMIC</button>
+                </div>
+            </div>
+
+            <!-- Launch Controls -->
+            <div class="btn-grid">
+                <button class="hud-btn" style="grid-column: span 2; border-color: var(--neon-pink); color: var(--neon-pink);" onclick="triggerManualLaunch()">FORCE DETONATION</button>
+            </div>
+
+            <div class="btn-grid">
+                <button id="auto-btn" class="hud-btn active" onclick="toggleAuto()">AUTO LAUNCH: ON</button>
+                <button id="audio-btn" class="hud-btn" onclick="toggleAudio()">SOUND: OFF</button>
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="footer-info">
+            <div class="instructions">
+                [CLICK & DRAG] Orbit Camera | [SCROLL] Zoom<br>
+                [LEFT CLICK SPACE] Trigger custom quantum explosion at coordinate.
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- Web Audio Synthesizer (Procedural SFX) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playLaunch() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 1.2);
+                
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 1.2);
+            }
+
+            playExplosion() {
+                if (!this.enabled || !this.ctx) return;
+                
+                // Low Rumble
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 1.5);
+                
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
+                
+                // High Sparkle (Noise)
+                const bufferSize = this.ctx.sampleRate * 1.5;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000;
+                
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                noise.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + 1.5);
+                noise.start();
+                noise.stop(this.ctx.currentTime + 1.5);
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        function toggleAudio() {
+            audio.init();
+            audio.enabled = !audio.enabled;
+            const btn = document.getElementById('audio-btn');
+            if (audio.enabled) {
+                btn.textContent = "SOUND: ON";
+                btn.classList.add('active');
+                // Resume audio context if suspended
+                if (audio.ctx.state === 'suspended') {
+                    audio.ctx.resume();
+                }
+            } else {
+                btn.textContent = "SOUND: OFF";
+                btn.classList.remove('active');
+            }
+        }
+
+
+        // --- Three.js Particle Engine ---
+        let scene, camera, renderer, controls;
+        let particles = [];
+        let rockets = [];
+        let activeTheme = 'NEON';
+        let autoLaunch = true;
+        let lastLaunchTime = 0;
+        let launchInterval = 1200; // ms
+
+        // Physics parameters
+        let config = {
+            density: 600,
+            force: 1.5,
+            gravity: 1.2,
+            drag: 0.98
+        };
+
+        const THEMES = {
+            NEON: ['#00f0ff', '#0072ff', '#ff007f', '#9b51e0', '#39ff14'],
+            CYBER:

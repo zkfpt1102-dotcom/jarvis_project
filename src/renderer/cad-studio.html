@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>J.A.R.V.I.S. 3D Hologram CAD Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cyan-neon: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.45);
+      --gold-neon: #ffd700;
+      --gold-glow: rgba(255, 215, 0, 0.45);
+      --bg-dark: #030814;
+      --bg-panel: rgba(6, 16, 36, 0.88);
+      --border-cyan: rgba(0, 240, 255, 0.35);
+      --text-main: #e2f1ff;
+      --text-dim: #7da5c9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top HUD Header */
+    header.hud-topbar {
+      height: 54px;
+      background: linear-gradient(180deg, rgba(8, 22, 48, 0.95), rgba(4, 12, 28, 0.9));
+      border-bottom: 1px solid var(--border-cyan);
+      box-shadow: 0 2px 20px rgba(0, 240, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .hud-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hud-arc-icon {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--cyan-neon);
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spinArc 3s linear infinite;
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+    @keyframes spinArc {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hud-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .hud-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-hud {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 5px;
+      border: 1px solid var(--border-cyan);
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--cyan-neon);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-hud:hover {
+      background: rgba(0, 240, 255, 0.28);
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 14px var(--cyan-glow);
+      transform: translateY(-1px);
+    }
+    .btn-hud.gold {
+      border-color: rgba(255, 215, 0, 0.5);
+      color: var(--gold-neon);
+      background: rgba(255, 215, 0, 0.1);
+    }
+    .btn-hud.gold:hover {
+      background: rgba(255, 215, 0, 0.25);
+      box-shadow: 0 0 14px var(--gold-glow);
+    }
+
+    /* Main Workspace Layout */
+    .studio-workspace {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Parameter Controls Panel */
+    .panel-left {
+      width: 320px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border-cyan);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      padding: 16px;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .panel-section-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      color: var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .panel-section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 12px;
+      background: var(--cyan-neon);
+      box-shadow: 0 0 8px var(--cyan-neon);
+    }
+
+    .control-card {
+      background: rgba(4, 12, 28, 0.7);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .slider-val {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--cyan-neon);
+    }
+    .slider-val.gold {
+      color: var(--gold-neon);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(0, 240, 255, 0.15);
+      outline: none;
+      margin: 6px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--cyan-neon);
+      box-shadow: 0 0 10px var(--cyan-neon);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+    }
+    input[type="range"].range-gold::-webkit-slider-thumb {
+      background: var(--gold-neon);
+      box-shadow: 0 0 10px var(--gold-neon);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.12);
+    }
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-main);
+    }
+
+    .switch-btn {
+      padding: 4px 10px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      border: 1px solid var(--border-cyan);
+      background: rgba(0, 240, 255, 0.08);
+      color: var(--cyan-neon);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .switch-btn.active {
+      background: rgba(0, 240, 255, 0.35);
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    /* Center 3D Viewport */
+    .viewport-center {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(12, 32, 70, 0.45) 0%, rgba(2, 6, 16, 0.95) 80%);
+    }
+
+    canvas#cadCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    canvas#cadCanvas:active {
+      cursor: grabbing;
+    }
+
+    /* Viewport Floating Overlay Controls */
+    .floating-tools {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      background: rgba(6, 16, 36, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 8px 16px;
+      border-radius: 30px;
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.2);
+      z-index: 10;
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-btn:hover {
+      color: var(--cyan-neon);
+      background: rgba(0, 240, 255, 0.15);
+    }
+    .tool-btn.active {
+      color: #fff;
+      background: rgba(0, 240, 255, 0.35);
+      box-shadow: 0 0 12px var(--cyan-neon);
+    }
+
+    /* Right Telemetry & BOM Panel */
+    .panel-right {
+      width: 330px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      border-left: 1px solid var(--border-cyan);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      padding: 16px;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .metric-box {
+      background: rgba(4, 12, 28, 0.7);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .metric-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--cyan-neon);
+    }
+
+    .bom-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .bom-item {
+      background: rgba(4, 12, 28, 0.6);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .bom-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .bom-qty {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      color: var(--cyan-neon);
+    }
+    .bom-spec {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Simulation Presets Buttons */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .btn-preset {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 8px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      background: rgba(0, 240, 255, 0.06);
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .btn-preset:hover {
+      border-color: var(--cyan-neon);
+      background: rgba(0, 240, 255, 0.2);
+      color: #fff;
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    /* 3D Part Manager & Inspector Styles */
+    .part-list-box {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 230px;
+      overflow-y: auto;
+    }
+    .part-item-card {
+      background: rgba(4, 12, 28, 0.7);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.15s;
+    }
+    .part-item-card:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyan-neon);
+    }
+    .part-item-card.selected {
+      background: rgba(255, 215, 0, 0.2);
+      border-color: var(--gold-neon);
+      box-shadow: 0 0 12px var(--gold-glow);
+    }
+    .part-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .part-dim-chip {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      color: var(--cyan-neon);
+    }
+    .color-chip {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      transition: transform 0.15s;
+    }
+    .color-chip:hover {
+      transform: scale(1.25);
+      border-color: #fff;
+    }
+    .btn-part-action {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      padding: 5px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--cyan-neon);
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--cyan-neon);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-part-action:hover {
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    /* Drag & Drop Overlay */
+    .drop-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 8, 20, 0.88);
+      backdrop-filter: blur(12px);
+      border: 3px dashed var(--cyan-neon);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      pointer-events: auto;
+      box-shadow: inset 0 0 60px var(--cyan-glow);
+    }
+    .drop-overlay.active {
+      display: flex;
+    }
+    .drop-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: pulseDrop 1.5s infinite;
+    }
+    @keyframes pulseDrop {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px #00f0ff); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 25px #00f0ff); }
+    }
+    .drop-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 15px var(--cyan-glow);
+    }
+    .drop-subtext {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    /* AI Analysis Hologram Modal */
+    .analyzing-modal {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 8, 20, 0.85);
+      backdrop-filter: blur(16px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .analyzing-modal.active {
+      display: flex;
+    }
+    .scanner-ring {
+      width: 90px;
+      height: 90px;
+      border: 3px solid rgba(0, 240, 255, 0.2);
+      border-top: 3px solid var(--cyan-neon);
+      border-right: 3px solid var(--gold-neon);
+      border-radius: 50%;
+      animation: spinArc 1.2s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+      box-shadow: 0 0 30px var(--cyan-glow);
+      margin-bottom: 24px;
+    }
+    .analyzing-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 10px var(--cyan-glow);
+    }
+    .analyzing-step {
+      font-size: 13px;
+      color: var(--cyan-neon);
+      margin-top: 8px;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Drag and Drop Overlay -->
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-icon">📷</div>
+    <div class="drop-text">가구 사진을 놓아 3D 입체 역설계 시작</div>
+    <div class="drop-subtext">배경을 자동으로 분리하고 3차원 CAD 입체 설계도로 투영합니다</div>
+  </div>
+
+  <!-- AI Analyzing Scanner Modal -->
+  <div class="analyzing-modal" id="analyzingModal">
+    <div class="scanner-ring"></div>
+    <div class="analyzing-title">J.A.R.V.I.S. VISION REVERSE-ENGINEERING</div>
+    <div class="analyzing-step" id="analyzingStepText">가구 외곽선 및 배경 분리 중...</div>
+  </div>
+
+  <!-- Top HUD Bar -->
+  <header class="hud-topbar">
+    <div class="hud-title-group">
+      <div class="hud-arc-icon"></div>
+      <span class="hud-title">JARVIS 3D CAD STUDIO</span>
+      <span class="hud-badge" id="badgeItemName">접이식 식탁</span>
+      <span class="hud-badge" style="border-color: #ffd700; color: #ffd700;">ULTRA-HD 4K RETINA</span>
+    </div>
+    <div class="top-actions">
+      <input type="file" id="filePhotoInput" accept="image/*" style="display:none;">
+      <button class="btn-hud" id="btnUploadPhoto" style="border-color:#00ffaa; color:#00ffaa; background:rgba(0,255,170,0.12);">
+        📷 가구 사진 분석/역설계
+      </button>
+      <button class="btn-hud" id="btnSyncJarvis">🔄 동기화</button>
+      <button class="btn-hud gold" id="btnExportPng">📷 도면 캡처</button>
+      <button class="btn-hud" id="btnCloseWindow" onclick="window.close()">✖ 닫기</button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="studio-workspace">
+    <!-- Left Parameter Controls -->
+    <aside class="panel-left">
+      <div class="panel-section-title">치수 파라미터 (DIMENSIONS)</div>
+      <div class="control-card">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span>가로 길이 (Width)</span>
+            <span class="slider-val" id="valWidth">1200 mm</span>
+          </div>
+          <input type="range" id="rangeWidth" min="300" max="2400" step="25" value="1200">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <span>깊이/폭 (Depth)</span>
+            <span class="slider-val" id="valDepth">600 mm</span>
+          </div>
+          <input type="range" id="rangeDepth" min="300" max="2400" step="25" value="600">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <span>설치 높이 (Height)</span>
+            <span class="slider-val" id="valHeight">750 mm</span>
+          </div>
+          <input type="range" id="rangeHeight" min="400" max="1200" step="25" value="750">
+        </div>
+      </div>
+
+      <div class="panel-section-title">동역학 시뮬레이션 (KINEMATICS)</div>
+      <div class="control-card">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span>1단 접힘 각도 (Fold Angle)</span>
+            <span class="slider-val" id="valFoldAngle">90°</span>
+          </div>
+          <input type="range" id="rangeFoldAngle" min="0" max="90" step="1" value="90">
+        </div>
+
+        <div class="slider-row" id="groupLeaf2">
+          <div class="slider-header">
+            <span>2단 보조 상판 각도 (Leaf 2)</span>
+            <span class="slider-val gold" id="valLeaf2">180°</span>
+          </div>
+          <input type="range" id="rangeLeaf2" class="range-gold" min="0" max="180" step="5" value="180">
+        </div>
+      </div>
+
+      <div class="panel-section-title">구조 메커니즘 옵션 (COMPONENTS)</div>
+      <div class="control-card">
+        <div class="toggle-row">
+          <span class="toggle-label">2단 결합 확장 상판 (Dual Leaf)</span>
+          <button class="switch-btn active" id="btnToggleLeaf2">ON</button>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">바닥 지지 접이식 다리 (Support Legs)</span>
+          <button class="switch-btn active" id="btnToggleLegs">ON</button>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">유압 가스 쇼바 (Gas Struts)</span>
+          <button class="switch-btn active" id="btnToggleStruts">ON</button>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">벽체 고정 마운트 (Wall Mount)</span>
+          <button class="switch-btn active" id="btnToggleWall">ON</button>
+        </div>
+      </div>
+
+      <div class="panel-section-title">원터치 상태 시뮬레이션 (PRESETS)</div>
+      <div class="preset-grid">
+        <button class="btn-preset" id="presetFolded">🚪 벽면 밀착 (0°)</button>
+        <button class="btn-preset" id="presetOpen">🍽️ 수평 전개 (90°)</button>
+        <button class="btn-preset" id="presetLong">📐 와이드 1600mm</button>
+        <button class="btn-preset" id="presetDual">⚡ 2단 풀 확장</button>
+      </div>
+
+      <div class="panel-section-title" id="secTitlePhoto" style="display:none; color:#00ffaa; margin-top:8px;">실물 사진 대조 (PHOTO REF)</div>
+      <div class="control-card" id="cardPhotoRef" style="display:none;">
+        <div style="position:relative; width:100%; border-radius:6px; overflow:hidden; border:1px solid rgba(0,255,170,0.3); background:#020610;">
+          <img id="imgPhotoRef" src="" style="width:100%; height:auto; display:block; max-height:140px; object-fit:contain;">
+          <div style="position:absolute; bottom:4px; left:6px; font-size:10px; background:rgba(0,0,0,0.75); padding:2px 6px; border-radius:3px; color:#00ffaa; font-family:'Orbitron', sans-serif;">
+            ORIGINAL PHOTO
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label" style="font-size:12px;">3D 배경에 실물 겹쳐보기</span>
+          <button class="switch-btn" id="btnTogglePhotoOverlay">OFF</button>
+        </div>
+        <div class="slider-row" id="groupPhotoOpacity" style="display:none;">
+          <div class="slider-header">
+            <span>사진 투명도</span>
+            <span class="slider-val" id="valPhotoOpacity" style="color:#00ffaa;">35%</span>
+          </div>
+          <input type="range" id="rangePhotoOpacity" min="10" max="90" step="5" value="35" style="accent-color:#00ffaa;">
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center 3D Viewport -->
+    <section class="viewport-center">
+      <canvas id="cadCanvas"></canvas>
+
+      <!-- Floating Viewport Tools -->
+      <div class="floating-tools">
+        <button class="tool-btn" id="btnAutoSpin">🔄 자동 회전</button>
+        <button class="tool-btn" id="btnTopView">⬆ 상단 평면도</button>
+        <button class="tool-btn" id="btnFrontView">⏹ 정면도</button>
+        <button class="tool-btn" id="btnResetCam">🎯 시점 초기화</button>
+      </div>
+    </section>
+
+    <!-- Right Telemetry & BOM & Part Manager Panel -->
+    <aside class="panel-right">
+      <!-- Tab Controls -->
+      <div style="display:flex; gap:6px; margin-bottom:12px; border-bottom:1px solid rgba(0,240,255,0.25); padding-bottom:8px;">
+        <button class="btn-hud active" id="tabBtnSpec" style="flex:1; padding:6px 4px; font-size:11px; justify-content:center;">📋 사양/BOM</button>
+        <button class="btn-hud gold" id="tabBtnParts" style="flex:1; padding:6px 4px; font-size:11px; justify-content:center;">🧩 3D 파츠 관리/추가</button>
+      </div>
+
+      <!-- Tab 1: Specs & BOM View -->
+      <div id="tabViewSpec" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="panel-section-title">엔지니어링 사양 (SPECIFICATIONS)</div>
+        <div class="metric-grid">
+          <div class="metric-box">
+            <span class="metric-label">최대 허용 하중</span>
+            <span class="metric-value" id="valLoadCap">75 kg</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">총 자체 중량</span>
+            <span class="metric-value" id="valEstWeight">18.4 kg</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">전개 면적</span>
+            <span class="metric-value" id="valSurfaceArea">1.44 ㎡</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">안전율 (Safety Factor)</span>
+            <span class="metric-value" style="color: #4ade80;">2.4 SF</span>
+          </div>
+        </div>
+
+        <div class="control-card">
+          <div class="metric-label">적용 소재 및 규격</div>
+          <div style="font-size: 12px; color: #fff; line-height: 1.4;" id="descMaterial">
+            E0 등급 고밀도 자작나무 합판 (24T) + 1200mm 피아노 버터플라이 힌지 + 유압 댐퍼 쇼바 (350N)
+          </div>
+        </div>
+
+        <div class="panel-section-title">부품 명세서 (BILL OF MATERIALS)</div>
+        <div class="bom-list" id="bomContainer">
+          <!-- Dynamic BOM items -->
+        </div>
+      </div>
+
+      <!-- Tab 2: 3D Part Manager & Real-Time Inspector View -->
+      <div id="tabViewParts" style="display:none; flex-direction:column; gap:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="panel-section-title" style="margin-bottom:0;">파츠 목록 (<span id="countPartsBadge">0</span>)</div>
+          <button class="btn-part-action" id="btnAddCustomPart" style="border-color:#00ffaa; color:#00ffaa; background:rgba(0,255,170,0.15);">
+            + 새 파츠 추가
+          </button>
+        </div>
+
+        <div class="part-list-box" id="partListContainer">
+          <!-- Dynamic 3D component items -->
+        </div>
+
+        <!-- Selected Part Inspector Card -->
+        <div class="control-card" id="cardPartInspector" style="border-color:var(--gold-neon);">
+          <div class="panel-section-title" style="color:var(--gold-neon); font-size:10px; margin-bottom:8px;">
+            선택된 파츠 인스펙터 (INSPECTOR)
+          </div>
+          
+          <div style="display:flex; flex-direction:column; gap:10px;" id="inspectorForm">
+            <div>
+              <div class="slider-header" style="margin-bottom:4px;"><span>파츠 이름</span></div>
+              <input type="text" id="inspPartName" style="width:100%; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.3); border-radius:4px; padding:6px 8px; color:#fff; font-size:12px; outline:none;">
+            </div>
+
+            <!-- Dimensions: W, H, D -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+              <div>
+                <span class="metric-label">폭 (W)</span>
+                <input type="number" id="inspPartW" min="5" max="3000" step="5" style="width:100%; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.3); border-radius:4px; padding:4px; color:#00f0ff; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+              <div>
+                <span class="metric-label">두께 (H)</span>
+                <input type="number" id="inspPartH" min="5" max="3000" step="5" style="width:100%; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.3); border-radius:4px; padding:4px; color:#00f0ff; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+              <div>
+                <span class="metric-label">깊이 (D)</span>
+                <input type="number" id="inspPartD" min="5" max="3000" step="5" style="width:100%; background:rgba(0,240,255,0.08); border:1px solid rgba(0,240,255,0.3); border-radius:4px; padding:4px; color:#00f0ff; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+            </div>
+
+            <!-- Position: X, Y, Z -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+              <div>
+                <span class="metric-label">좌우 (X)</span>
+                <input type="number" id="inspPartX" min="-2000" max="2000" step="5" style="width:100%; background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:4px; padding:4px; color:#ffd700; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+              <div>
+                <span class="metric-label">높이 (Y)</span>
+                <input type="number" id="inspPartY" min="0" max="2000" step="5" style="width:100%; background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:4px; padding:4px; color:#ffd700; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+              <div>
+                <span class="metric-label">앞뒤 (Z)</span>
+                <input type="number" id="inspPartZ" min="-2000" max="2000" step="5" style="width:100%; background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:4px; padding:4px; color:#ffd700; font-family:'Orbitron',sans-serif; font-size:11px;">
+              </div>
+            </div>
+
+            <!-- Color Palette Chips -->
+            <div>
+              <span class="metric-label">네온 테마 색상</span>
+              <div style="display:flex; gap:8px; margin-top:4px;" id="colorChipPalette">
+                <div class="color-chip" data-col="#00f0ff" style="background:#00f0ff;" title="Cyan"></div>
+                <div class="color-chip" data-col="#ffd700" style="background:#ffd700;" title="Gold"></div>
+                <div class="color-chip" data-col="#00ffaa" style="background:#00ffaa;" title="Emerald"></div>
+                <div class="color-chip" data-col="#38bdf8" style="background:#38bdf8;" title="SkyBlue"></div>
+                <div class="color-chip" data-col="#a855f7" style="background:#a855f7;" title="Violet"></div>
+                <div class="color-chip" data-col="#ff3b5c" style="background:#ff3b5c;" title="Coral"></div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button class="btn-part-action" id="btnDuplicatePart" style="flex:1; justify-content:center;">📋 복제</button>
+              <button class="btn-part-action" id="btnDeletePart" style="flex:1; justify-content:center; border-color:#ff3b5c; color:#ff3b5c; background:rgba(255,59,92,0.15);">🗑️ 삭제</button>
+            </div>
+          </div>
+          <div id="inspectorEmptyMsg" style="display:none; color:var(--text-dim); font-size:12px; text-align:center; padding:16px 0;">
+            목록에서 수정할 파츠를 선택하거나<br>3D 홀로그램 화면을 클릭하세요.
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // Global Blueprint State
+    let bp = {
+      itemName: '2단 결합 확장형 접이식 식탁 (Dual-Leaf Folding Table)',
+      category: 'FOLDING_TABLE_DUAL',
+      dimensions: {
+        width: 1200,
+        depth: 600,
+        height: 750,
+        thickness: 24,
+        foldAngle: 90,
+        hasSecondaryBoard: true,
+        leaf2Angle: 180,
+        hasLegs: true,
+        hasStruts: true,
+        hasWallMount: true
+      },
+      material: 'E0 등급 고밀도 자작나무 합판 (24T) + 피아노 버터플라이 힌지 + 350N 유압 쇼바',
+      loadCapacity: 75,
+      parts: []
+    };
+
+    // Camera & Viewport State
+    let rotX = -22;
+    let rotY = 32;
+    let zoom = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let isAutoSpin = false;
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    const canvas = document.getElementById('cadCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Element References
+    const rangeW = document.getElementById('rangeWidth');
+    const rangeD = document.getElementById('rangeDepth');
+    const rangeH = document.getElementById('rangeHeight');
+    const rangeFA = document.getElementById('rangeFoldAngle');
+    const rangeL2 = document.getElementById('rangeLeaf2');
+
+    const valW = document.getElementById('valWidth');
+    const valD = document.getElementById('valDepth');
+    const valH = document.getElementById('valHeight');
+    const valFA = document.getElementById('valFoldAngle');
+    const valL2 = document.getElementById('valLeaf2');
+
+    const btnToggleL2 = document.getElementById('btnToggleLeaf2');
+    const btnToggleLegs = document.getElementById('btnToggleLegs');
+    const btnToggleStruts = document.getElementById('btnToggleStruts');
+    const btnToggleWall = document.getElementById('btnToggleWall');
+    const btnAutoSpinEl = document.getElementById('btnAutoSpin');
+
+    const badgeItem = document.getElementById('badgeItemName');
+    const valLoad = document.getElementById('valLoadCap');
+    const valWeight = document.getElementById('valEstWeight');
+    const valArea = document.getElementById('valSurfaceArea');
+    const descMat = document.getElementById('descMaterial');
+    const bomBox = document.getElementById('bomContainer');
+
+    // Part Manager UI References
+    const tabBtnSpec = document.getElementById('tabBtnSpec');
+    const tabBtnParts = document.getElementById('tabBtnParts');
+    const tabViewSpec = document.getElementById('tabViewSpec');
+    const tabViewParts = document.getElementById('tabViewParts');
+    const partListContainer = document.getElementById('partListContainer');
+    const countPartsBadge = document.getElementById('countPartsBadge');
+    const btnAddCustomPart = document.getElementById('btnAddCustomPart');
+    const cardPartInspector = document.getElementById('cardPartInspector');
+    const inspectorForm = document.getElementById('inspectorForm');
+    const inspectorEmptyMsg = document.getElementById('inspectorEmptyMsg');
+
+    const inspPartName = document.getElementById('inspPartName');
+    const inspPartW = document.getElementById('inspPartW');
+    const inspPartH = document.getElementById('inspPartH');
+    const inspPartD = document.getElementById('inspPartD');
+    const inspPartX = document.getElementById('inspPartX');
+    const inspPartY = document.getElementById('inspPartY');
+    const inspPartZ = document.getElementById('inspPartZ');
+    const btnDuplicatePart = document.getElementById('btnDuplicatePart');
+    const btnDeletePart = document.getElementById('btnDeletePart');
+
+    let selectedPartIndex = -1;
+    let renderedComponentHitboxes = [];
+
+    // Photo-to-CAD Reference & Overlay References
+    const secTitlePhoto = document.getElementById('secTitlePhoto');
+    const cardPhotoRef = document.getElementById('cardPhotoRef');
+    const imgPhotoRef = document.getElementById('imgPhotoRef');
+    const btnTogglePhotoOverlay = document.getElementById('btnTogglePhotoOverlay');
+    const groupPhotoOpacity = document.getElementById('groupPhotoOpacity');
+    const rangePhotoOpacity = document.getElementById('rangePhotoOpacity');
+    const valPhotoOpacity = document.getElementById('valPhotoOpacity');
+
+    const filePhotoInput = document.getElementById('filePhotoInput');
+    const btnUploadPhoto = document.getElementById('btnUploadPhoto');
+    const dropOverlay = document.getElementById('dropOverlay');
+    const analyzingModal = document.getElementById('analyzingModal');
+    const analyzingStepText = document.getElementById('analyzingStepText');
+
+    let photoOverlayImage = null;
+    let isPhotoOverlayActive = false;
+    let photoOverlayAlpha = 0.35;
+
+    // Sync and Interaction Management
+    let isUserInteracting = false;
+    let interactTimer = null;
+    function markUserInteraction() {
+      isUserInteracting = true;
+      if (interactTimer) clearTimeout(interactTimer);
+      interactTimer = setTimeout(() => {
+        isUserInteracting = false;
+      }, 2500);
+    }
+
+    let saveDebounceTimer = null;
+    function persistManualChanges() {
+      bp.updatedAt = Date.now();
+      if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = setTimeout(() => {
+        try {
+          localStorage.setItem('jarvis_latest_blueprint', JSON.stringify(bp));
+        } catch (e) {}
+        fetch('/api/cad/latest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bp)
+        }).catch(() => {});
+      }, 100);
+    }
+
+    // Sync from Server or Electron IPC
+    async function loadLatestBlueprint() {
+      if (isUserInteracting) return; // Never overwrite while user is manually sliding controls!
+      try {
+        const res = await fetch('/api/cad/latest');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.dimensions) {
+            if (data.updatedAt && bp.updatedAt && data.updatedAt <= bp.updatedAt) {
+              return; // Ignore older or equal server state
+            }
+            applyBlueprintData(data);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch latest blueprint:', e);
+      }
+    }
+
+    if (window.jarvisAPI && window.jarvisAPI.onCADDataUpdate) {
+      window.jarvisAPI.onCADDataUpdate((data) => {
+        if (data) applyBlueprintData(data);
+      });
+    }
+
+    function applyBlueprintData(data) {
+      bp = { ...bp, ...data };
+      if (!bp.dimensions.hasOwnProperty('hasLegs')) bp.dimensions.hasLegs = true;
+      if (!bp.dimensions.hasOwnProperty('hasStruts')) bp.dimensions.hasStruts = true;
+      if (!bp.dimensions.hasOwnProperty('hasWallMount')) bp.dimensions.hasWallMount = true;
+
+      badgeItem.textContent = bp.itemName || '가구 CAD 설계도';
+      rangeW.value = bp.dimensions.width;
+      rangeD.value = bp.dimensions.depth;
+      rangeH.value = bp.dimensions.height;
+      rangeFA.value = bp.dimensions.foldAngle !== undefined ? bp.dimensions.foldAngle : 90;
+      rangeL2.value = bp.dimensions.leaf2Angle !== undefined ? bp.dimensions.leaf2Angle : 180;
+
+      // Handle photo reference if available
+      if (bp.sourcePhoto) {
+        secTitlePhoto.style.display = 'flex';
+        cardPhotoRef.style.display = 'flex';
+        imgPhotoRef.src = bp.sourcePhoto;
+        photoOverlayImage = new Image();
+        photoOverlayImage.src = bp.sourcePhoto;
+      }
+
+      if (bp.description) {
+        descMat.textContent = `${bp.material || '맞춤 원목/스틸 구조'} | ${bp.description}`;
+      }
+
+      // Synchronize auto-rotate state if explicitly provided by JARVIS
+      if (data.dimensions && data.dimensions.autoRotate !== undefined) {
+        isAutoSpin = !!data.dimensions.autoRotate;
+        btnAutoSpinEl.className = `tool-btn ${isAutoSpin ? 'active' : ''}`;
+      } else if (data.autoRotate !== undefined) {
+        isAutoSpin = !!data.autoRotate;
+        btnAutoSpinEl.className = `tool-btn ${isAutoSpin ? 'active' : ''}`;
+      }
+
+      bp._lastW = bp.dimensions.width;
+      bp._lastD = bp.dimensions.depth;
+      bp._lastH = bp.dimensions.height;
+
+      updateUI();
+      renderPartList();
+      if (selectedPartIndex >= 0) updateInspector();
+    }
+
+    function updateUI() {
+      const d = bp.dimensions;
+      valW.textContent = `${d.width} mm`;
+      valD.textContent = d.hasSecondaryBoard && d.leaf2Angle === 180 ? `${d.depth}×2 = ${d.depth * 2} mm` : `${d.depth} mm`;
+      valH.textContent = `${d.height} mm`;
+      valFA.textContent = `${d.foldAngle}°`;
+      valL2.textContent = `${d.leaf2Angle}°`;
+
+      document.getElementById('groupLeaf2').style.display = d.hasSecondaryBoard ? 'flex' : 'none';
+      btnToggleL2.textContent = d.hasSecondaryBoard ? 'ON' : 'OFF';
+      btnToggleL2.className = `switch-btn ${d.hasSecondaryBoard ? 'active' : ''}`;
+
+      btnToggleLegs.textContent = d.hasLegs ? 'ON' : 'OFF';
+      btnToggleLegs.className = `switch-btn ${d.hasLegs ? 'active' : ''}`;
+
+      btnToggleStruts.textContent = d.hasStruts ? 'ON' : 'OFF';
+      btnToggleStruts.className = `switch-btn ${d.hasStruts ? 'active' : ''}`;
+
+      btnToggleWall.textContent = d.hasWallMount ? 'ON' : 'OFF';
+      btnToggleWall.className = `switch-btn ${d.hasWallMount ? 'active' : ''}`;
+
+      // Calculations
+      const mult = d.hasSecondaryBoard ? 2 : 1;
+      const weight = (((d.width * d.depth * 24) * 0.00000072) * mult + (d.hasLegs ? 3.5 : 0) + (d.hasWallMount ? 2.5 : 0)).toFixed(1);
+      const load = d.hasLegs ? 100 : (d.hasSecondaryBoard ? 75 : 50);
+      const area = ((d.width * d.depth * mult) / 1000000).toFixed(2);
+
+      valLoad.textContent = `${load} kg`;
+      valWeight.textContent = `${weight} kg`;
+      valArea.textContent = `${area} ㎡`;
+
+      // Render BOM & Parts
+      renderBOM();
+      renderPartList();
+      if (selectedPartIndex >= 0) updateInspector();
+    }
+
+    function renderBOM() {
+      const d = bp.dimensions;
+      let parts = [];
+      if (bp.parts && bp.parts.length > 0) {
+        parts = bp.parts;
+      } else {
+        parts = [
+          { name: '1차 메인 상판 (Primary Board)', qty: 1, spec: `${d.width} × ${d.depth} × 24 mm 자작나무 합판` }
+        ];
+        if (d.hasSecondaryBoard) {
+          parts.push({ name: '2차 결합 확장 상판 (Secondary Board)', qty: 1, spec: `${d.width} × ${d.depth} × 24 mm 자작나무 합판` });
+          parts.push({ name: '피아노 버터플라이 힌지 (Butterfly Hinge)', qty: 1, spec: `${d.width} mm 연속 결착형 스테인리스` });
+        }
+        if (d.hasWallMount) {
+          parts.push({ name: '벽면 고정 백플레이트 (Steel Wall Base)', qty: 1, spec: `${d.width} × 140 × 30 mm 강철 브라켓` });
+          parts.push({ name: '메인 피벗 힌지 어셈블리 (Pivot Hinges)', qty: 3, spec: 'Ø20mm 헤비듀티 회전 샤프트' });
+          parts.push({ name: '콘크리트 앙카 볼트 (Anchor Bolts)', qty: 8, spec: 'M8 × 70mm 고장력 볼트' });
+        }
+        if (d.hasStruts) {
+          parts.push({ name: '유압 가스 댐퍼 쇼바 (Dual Gas Struts)', qty: 2, spec: d.hasSecondaryBoard ? '350N 헤비듀티 하중 등급' : '200N 표준 등급' });
+        }
+        if (d.hasLegs) {
+          parts.push({ name: '하부 접이식 다리 어셈블리 (Ground Legs)', qty: 2, spec: `${d.height - 30}mm 레벨러 글라이더 장착형` });
+          parts.push({ name: '하부 H형 보강 프레임 (Support Beams)', qty: 1, spec: `${d.width - 100} × 40 × 20mm 스틸 튜브` });
+        }
+      }
+
+      bomBox.innerHTML = parts.map(p => `
+        <div class="bom-item">
+          <div class="bom-head">
+            <span>${p.name}</span>
+            <span class="bom-qty">× ${p.qty}</span>
+          </div>
+          <div class="bom-spec">${p.spec}</div>
+        </div>
+      `).join('');
+    }
+
+    // Ultra-Fast Optimized Retina Canvas Resize
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // 3D Isometric Projection Engine
+    function project3D(x, y, z, cx, cy) {
+      const radY = (rotY * Math.PI) / 180;
+      const radX = (rotX * Math.PI) / 180;
+      const yOffset = y - (bp.dimensions.height * 0.32);
+
+      // Y-axis rotation
+      const x1 = x * Math.cos(radY) + z * Math.sin(radY);
+      const z1 = -x * Math.sin(radY) + z * Math.cos(radY);
+
+      // X-axis rotation
+      const y2 = yOffset * Math.cos(radX) - z1 * Math.sin(radX);
+      const z2 = yOffset * Math.sin(radX) + z1 * Math.cos(radX);
+
+      const fov = 2600;
+      const factor = (fov / (fov + z2)) * 0.28 * zoom;
+      return {
+        px: cx + panX + x1 * factor,
+        py: cy + panY + y2 * factor,
+        depth: z2
+      };
+    }
+
+    // Main 3D Render Loop
+    function render() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 0. Photo Overlay Comparison Mode (실물 사진 대조 투영)
+      if (isPhotoOverlayActive && photoOverlayImage && photoOverlayImage.complete && photoOverlayImage.naturalWidth > 0) {
+        ctx.save();
+        ctx.globalAlpha = photoOverlayAlpha;
+        const imgAspect = photoOverlayImage.naturalWidth / photoOverlayImage.naturalHeight;
+        const canvasAspect = w / h;
+        let dw, dh, dx, dy;
+        if (imgAspect > canvasAspect) {
+          dw = w * 0.82;
+          dh = dw / imgAspect;
+        } else {
+          dh = h * 0.82;
+          dw = dh * imgAspect;
+        }
+        dx = (w - dw) / 2;
+        dy = (h - dh) / 2;
+        ctx.drawImage(photoOverlayImage, dx, dy, dw, dh);
+        ctx.restore();
+      }
+
+      if (isAutoSpin) {
+        rotY = (rotY + 0.4) % 360;
+      }
+
+      const dims = bp.dimensions;
+      const wallZ = -dims.depth / 2;
+      const halfW = dims.width / 2;
+      const th = dims.thickness || 24;
+      const foldRad = ((dims.foldAngle !== undefined ? dims.foldAngle : 90) * Math.PI) / 180;
+
+      // 1. Cybernetic Radial Floor Grid (Ground plane at y = dims.height)
+      const floorY = dims.height;
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+      ctx.lineWidth = 1;
+
+      for (let r = 300; r <= 1400; r += 300) {
+        ctx.beginPath();
+        for (let a = 0; a <= 360; a += 15) {
+          const ar = (a * Math.PI) / 180;
+          const p = project3D(Math.cos(ar) * r, floorY, Math.sin(ar) * r, cx, cy);
+          if (a === 0) ctx.moveTo(p.px, p.py);
+          else ctx.lineTo(p.px, p.py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      // 2. Branch: If photo reverse-engineered components exist, render dynamic 3D mesh
+      if (bp.components && bp.components.length > 0) {
+        renderDynamicMeshComponents(bp.components, dims, floorY, cx, cy);
+      } else {
+        // Default Wall-Mounted Kinematic Folding Table Renderer
+        // 2.1 Wall Mount Frame (Solid 3D Steel Back Plate)
+        if (dims.hasWallMount) {
+          const bpTop = -120;
+          const bpBottom = 160;
+          const bpThick = 30;
+
+          function getWallPlateCorner(lx, ly, lz) {
+            return project3D(lx, ly, wallZ - lz, cx, cy);
+          }
+
+          const wp000 = getWallPlateCorner(-halfW - 40, bpTop, 0);
+          const wp100 = getWallPlateCorner(halfW + 40, bpTop, 0);
+          const wp110 = getWallPlateCorner(halfW + 40, bpBottom, 0);
+          const wp010 = getWallPlateCorner(-halfW - 40, bpBottom, 0);
+
+          const wp001 = getWallPlateCorner(-halfW - 40, bpTop, bpThick);
+          const wp101 = getWallPlateCorner(halfW + 40, bpTop, bpThick);
+          const wp111 = getWallPlateCorner(halfW + 40, bpBottom, bpThick);
+          const wp011 = getWallPlateCorner(-halfW - 40, bpBottom, bpThick);
+
+          // Fill Back Plate Face
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+          ctx.lineWidth = 1.5;
+
+          ctx.beginPath();
+          ctx.moveTo(wp000.px, wp000.py); ctx.lineTo(wp100.px, wp100.py);
+          ctx.lineTo(wp110.px, wp110.py); ctx.lineTo(wp010.px, wp010.py);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(wp001.px, wp001.py); ctx.lineTo(wp101.px, wp101.py);
+          ctx.lineTo(wp111.px, wp111.py); ctx.lineTo(wp011.px, wp011.py);
+          ctx.closePath();
+          ctx.stroke();
+
+          // 8 Anchor Bolts on Wall Plate
+          const boltCols = [-halfW, -halfW * 0.35, halfW * 0.35, halfW];
+          const boltRows = [bpTop + 30, bpBottom - 30];
+          ctx.fillStyle = '#ffffff';
+          boltCols.forEach(bx => {
+            boltRows.forEach(by => {
+              const bpBolt = project3D(bx, by, wallZ, cx, cy);
+              ctx.beginPath();
+              ctx.arc(bpBolt.px, bpBolt.py, 3, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          });
+
+          // 3 Machined Cylindrical Pivot Hinges
+          const hingePos = [-halfW * 0.7, 0, halfW * 0.7];
+          hingePos.forEach(hx => {
+            const hStart = project3D(hx - 25, 0, wallZ, cx, cy);
+            const hEnd = project3D(hx + 25, 0, wallZ, cx, cy);
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(hStart.px, hStart.py);
+            ctx.lineTo(hEnd.px, hEnd.py);
+            ctx.stroke();
+          });
+        }
+
+        // 2.2 Primary Board 3D Solid Coordinates
+        function getBoard1Corner(lx, lz, ly) {
+          const py = lz * Math.cos(foldRad) + ly * Math.sin(foldRad);
+          const pz = wallZ + lz * Math.sin(foldRad) - ly * Math.cos(foldRad);
+          return project3D(lx, py, pz, cx, cy);
+        }
+
+        const p000 = getBoard1Corner(-halfW, 0, 0);
+        const p100 = getBoard1Corner(halfW, 0, 0);
+        const p110 = getBoard1Corner(halfW, dims.depth, 0);
+        const p010 = getBoard1Corner(-halfW, dims.depth, 0);
+
+        const p001 = getBoard1Corner(-halfW, 0, th);
+        const p101 = getBoard1Corner(halfW, 0, th);
+        const p111 = getBoard1Corner(halfW, dims.depth, th);
+        const p011 = getBoard1Corner(-halfW, dims.depth, th);
+
+        // Draw Board 1 Top Face (Cyan Neon Solid)
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.18)';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+
+        ctx.beginPath();
+        ctx.moveTo(p000.px, p000.py); ctx.lineTo(p100.px, p100.py);
+        ctx.lineTo(p110.px, p110.py); ctx.lineTo(p010.px, p010.py);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // Board 1 Bottom Face & Thickness Edges
+        ctx.lineWidth = 1.4;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(p001.px, p001.py); ctx.lineTo(p101.px, p101.py);
+        ctx.lineTo(p111.px, p111.py); ctx.lineTo(p011.px, p011.py);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(p000.px, p000.py); ctx.lineTo(p001.px, p001.py);
+        ctx.moveTo(p100.px, p100.py); ctx.lineTo(p101.px, p101.py);
+        ctx.moveTo(p110.px, p110.py); ctx.lineTo(p111.px, p111.py);
+        ctx.moveTo(p010.px, p010.py); ctx.lineTo(p011.px, p011.py);
+        ctx.stroke();
+
+        // 2.3 Secondary Extendable Board (2단 확장 결합 상판)
+        if (dims.hasSecondaryBoard) {
+          const leaf2Rad = ((dims.leaf2Angle !== undefined ? dims.leaf2Angle : 180) * Math.PI) / 180;
+          const alpha2 = foldRad + (Math.PI - leaf2Rad);
+
+          function getBoard2Corner(lx, lz, ly) {
+            const hinge2_Y = dims.depth * Math.cos(foldRad);
+            const hinge2_Z = wallZ + dims.depth * Math.sin(foldRad);
+
+            const py = hinge2_Y + lz * Math.cos(alpha2) + ly * Math.sin(alpha2);
+            const pz = hinge2_Z + lz * Math.sin(alpha2) - ly * Math.cos(alpha2);
+            return project3D(lx, py, pz, cx, cy);
+          }
+
+          const b2_000 = getBoard2Corner(-halfW, 0, 0);
+          const b2_100 = getBoard2Corner(halfW, 0, 0);
+          const b2_110 = getBoard2Corner(halfW, dims.depth, 0);
+          const b2_010 = getBoard2Corner(-halfW, dims.depth, 0);
+
+          const b2_001 = getBoard2Corner(-halfW, 0, th);
+          const b2_101 = getBoard2Corner(halfW, 0, th);
+          const b2_111 = getBoard2Corner(halfW, dims.depth, th);
+          const b2_011 = getBoard2Corner(-halfW, dims.depth, th);
+
+          // Board 2 Face (Amber Gold Glow)
+          ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 2.4;
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = 10;
+
+          ctx.beginPath();
+          ctx.moveTo(b2_000.px, b2_000.py); ctx.lineTo(b2_100.px, b2_100.py);
+          ctx.lineTo(b2_110.px, b2_110.py); ctx.lineTo(b2_010.px, b2_010.py);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+
+          ctx.lineWidth = 1.4;
+          ctx.shadowBlur = 0;
+          ctx.beginPath();
+          ctx.moveTo(b2_001.px, b2_001.py); ctx.lineTo(b2_101.px, b2_101.py);
+          ctx.lineTo(b2_111.px, b2_111.py); ctx.lineTo(b2_011.px, b2_011.py);
+          ctx.closePath();
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(b2_000.px, b2_000.py); ctx.lineTo(b2_001.px, b2_001.py);
+          ctx.moveTo(b2_100.px, b2_100.py); ctx.lineTo(b2_101.px, b2_101.py);
+          ctx.moveTo(b2_110.px, b2_110.py); ctx.lineTo(b2_111.px, b2_111.py);
+          ctx.moveTo(b2_010.px, b2_010.py); ctx.lineTo(b2_011.px, b2_011.py);
+          ctx.stroke();
+
+          // Piano Hinge Line
+          ctx.strokeStyle = '#ffffff';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(b2_000.px, b2_000.py); ctx.lineTo(b2_100.px, b2_100.py);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // 2.4 Hydraulic Struts
+        if (dims.hasStruts) {
+          const strutMounts = [-halfW * 0.6, halfW * 0.6];
+          strutMounts.forEach(sx => {
+            const wallAnchor = project3D(sx, 220, wallZ, cx, cy);
+            const tableAnchor = getBoard1Corner(sx, dims.depth * 0.65, th);
+
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.moveTo(wallAnchor.px, wallAnchor.py);
+            const midX = (wallAnchor.px * 0.45 + tableAnchor.px * 0.55);
+            const midY = (wallAnchor.py * 0.45 + tableAnchor.py * 0.55);
+            ctx.lineTo(midX, midY);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(midX, midY);
+            ctx.lineTo(tableAnchor.px, tableAnchor.py);
+            ctx.stroke();
+
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(wallAnchor.px, wallAnchor.py, 4, 0, Math.PI * 2);
+            ctx.arc(tableAnchor.px, tableAnchor.py, 4, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        // 2.5 Folding Legs
+        if (dims.hasLegs) {
+          const legOffsets = [-halfW * 0.8, halfW * 0.8];
+          const legZPos = dims.depth * 0.88;
+
+          legOffsets.forEach(lx => {
+            const legTop = getBoard1Corner(lx, legZPos, th);
+            const legLength = dims.height - th;
+            const legRot = foldRad - Math.PI / 2;
+            const legFoot_Y = (legZPos * Math.cos(foldRad)) + (legLength * Math.cos(legRot));
+            const legFoot_Z = wallZ + (legZPos * Math.sin(foldRad)) + (legLength * Math.sin(legRot));
+            const legFoot = project3D(lx, legFoot_Y, legFoot_Z, cx, cy);
+
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.moveTo(legTop.px, legTop.py);
+            ctx.lineTo(legFoot.px, legFoot.py);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(legFoot.px, legFoot.py, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(legTop.px, legTop.py, 4, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          const legTopL = getBoard1Corner(legOffsets[0], legZPos, th + 80);
+          const legTopR = getBoard1Corner(legOffsets[1], legZPos, th + 80);
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(legTopL.px, legTopL.py);
+          ctx.lineTo(legTopR.px, legTopR.py);
+          ctx.stroke();
+        }
+
+        // Dimension Annotation Leaders
+        ctx.font = 'bold 13px Orbitron, sans-serif';
+        ctx.fillStyle = '#00f0ff';
+        ctx.shadowBlur = 0;
+
+        const midFrontX = (p010.px + p110.px) / 2;
+        const midFrontY = (p010.py + p110.py) / 2 - 12;
+        ctx.fillText(`WIDTH: ${dims.width} mm`, midFrontX - 45, midFrontY);
+
+        const midSideX = (p100.px + p110.px) / 2 + 15;
+        const midSideY = (p100.py + p110.py) / 2;
+        ctx.fillText(`DEPTH: ${dims.depth} mm`, midSideX, midSideY);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // Dynamic 3D Mesh Component Hologram Renderer for Photo Reverse-Engineered Objects
+    function renderDynamicMeshComponents(components, dims, groundY, cx, cy) {
+      renderedComponentHitboxes = [];
+
+      // Painter's Depth Sorting across all 3D components
+      const sorted = components.map((comp, idx) => {
+        const topY = groundY - (comp.y + comp.h);
+        const bottomY = groundY - comp.y;
+        const centerPt = project3D(comp.x + comp.w / 2, (topY + bottomY) / 2, comp.z + comp.d / 2, cx, cy);
+        return { comp, idx, depth: centerPt.depth, topY, bottomY };
+      }).sort((a, b) => b.depth - a.depth);
+
+      // 2D Cross Product for Backface Culling
+      function isFrontFacing(p0, p1, p2) {
+        const ax = p1.px - p0.px;
+        const ay = p1.py - p0.py;
+        const bx = p2.px - p0.px;
+        const by = p2.py - p0.py;
+        return (ax * by - ay * bx) >= 0;
+      }
+
+      for (const item of sorted) {
+        const isSelected = (item.idx === selectedPartIndex);
+        const c = item.comp;
+        const col = isSelected ? '#ffd700' : (c.color || '#00f0ff');
+        const topY = item.topY;
+        const bottomY = item.bottomY;
+
+        // 8 Corners of the solid 3D box
+        const p_b00 = project3D(c.x, bottomY, c.z, cx, cy);
+        const p_b10 = project3D(c.x + c.w, bottomY, c.z, cx, cy);
+        const p_b11 = project3D(c.x + c.w, bottomY, c.z + c.d, cx, cy);
+        const p_b01 = project3D(c.x, bottomY, c.z + c.d, cx, cy);
+
+        const p_t00 = project3D(c.x, topY, c.z, cx, cy);
+        const p_t10 = project3D(c.x + c.w, topY, c.z, cx, cy);
+        const p_t11 = project3D(c.x + c.w, topY, c.z + c.d, cx, cy);
+        const p_t01 = project3D(c.x, topY, c.z + c.d, cx, cy);
+
+        // 6 Isometric Faces with Directional Shading
+        const faces = [
+          // 1. Top face (Luminous main surface)
+          { pts: [p_t00, p_t10, p_t11, p_t01], alpha: isSelected ? 0.6 : 0.42, strokeW: isSelected ? 3.0 : 2.0 },
+          // 2. Front face
+          { pts: [p_t01, p_t11, p_b11, p_b01], alpha: isSelected ? 0.45 : 0.30, strokeW: isSelected ? 2.5 : 1.5 },
+          // 3. Right face
+          { pts: [p_t11, p_t10, p_b10, p_b11], alpha: isSelected ? 0.38 : 0.24, strokeW: isSelected ? 2.4 : 1.4 },
+          // 4. Left face
+          { pts: [p_t00, p_t01, p_b01, p_b00], alpha: isSelected ? 0.40 : 0.26, strokeW: isSelected ? 2.4 : 1.4 },
+          // 5. Back face
+          { pts: [p_t10, p_t00, p_b00, p_b10], alpha: isSelected ? 0.30 : 0.18, strokeW: isSelected ? 2.0 : 1.2 },
+          // 6. Bottom face
+          { pts: [p_b01, p_b11, p_b10, p_b00], alpha: isSelected ? 0.25 : 0.15, strokeW: isSelected ? 2.0 : 1.2 }
+        ];
+
+        // Record hitboxes for 3D mouse picking
+        const visibleFacePolys = [];
+        for (const f of faces) {
+          if (isFrontFacing(f.pts[0], f.pts[1], f.pts[2])) {
+            visibleFacePolys.push(f.pts);
+          }
+        }
+        renderedComponentHitboxes.push({
+          idx: item.idx,
+          depth: item.depth,
+          faces: visibleFacePolys
+        });
+
+        if (isSelected) {
+          ctx.save();
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = 14;
+        }
+
+        // Render visible solid faces with neon translucent glass
+        for (const f of faces) {
+          if (isFrontFacing(f.pts[0], f.pts[1], f.pts[2])) {
+            ctx.fillStyle = hexToRgba(col, f.alpha);
+            ctx.strokeStyle = col;
+            ctx.lineWidth = f.strokeW;
+
+            ctx.beginPath();
+            ctx.moveTo(f.pts[0].px, f.pts[0].py);
+            ctx.lineTo(f.pts[1].px, f.pts[1].py);
+            ctx.lineTo(f.pts[2].px, f.pts[2].py);
+            ctx.lineTo(f.pts[3].px, f.pts[3].py);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+
+        // Render all 12 structural edges for crisp blueprint holographic look
+        ctx.strokeStyle = isSelected ? '#ffd700' : hexToRgba(col, 0.7);
+        ctx.lineWidth = isSelected ? 2.4 : 1.2;
+        ctx.beginPath();
+        // Top rim
+        ctx.moveTo(p_t00.px, p_t00.py); ctx.lineTo(p_t10.px, p_t10.py);
+        ctx.lineTo(p_t11.px, p_t11.py); ctx.lineTo(p_t01.px, p_t01.py);
+        ctx.closePath();
+        // Bottom rim
+        ctx.moveTo(p_b00.px, p_b00.py); ctx.lineTo(p_b10.px, p_b10.py);
+        ctx.lineTo(p_b11.px, p_b11.py); ctx.lineTo(p_b01.px, p_b01.py);
+        ctx.closePath();
+        // 4 Vertical pillars
+        ctx.moveTo(p_t00.px, p_t00.py); ctx.lineTo(p_b00.px, p_b00.py);
+        ctx.moveTo(p_t10.px, p_t10.py); ctx.lineTo(p_b10.px, p_b10.py);
+        ctx.moveTo(p_t11.px, p_t11.py); ctx.lineTo(p_b11.px, p_b11.py);
+        ctx.moveTo(p_t01.px, p_t01.py); ctx.lineTo(p_b01.px, p_b01.py);
+        ctx.stroke();
+
+        if (isSelected) {
+          ctx.restore();
+          // Draw 3D Floating Tag for Selected Component
+          const tagPt = project3D(c.x + c.w / 2, topY - 14, c.z + c.d / 2, cx, cy);
+          ctx.fillStyle = '#ffd700';
+          ctx.font = 'bold 11px Orbitron, sans-serif';
+          ctx.fillText(`▶ ${c.name} (${c.w}×${c.d}×${c.h})`, tagPt.px - 45, tagPt.py);
+        }
+      }
+
+      // Dimensions HUD Annotation
+      ctx.font = 'bold 13px Orbitron, sans-serif';
+      ctx.fillStyle = '#00f0ff';
+      ctx.shadowBlur = 0;
+
+      const pFrontL = project3D(-dims.width / 2, groundY, dims.depth / 2, cx, cy);
+      const pFrontR = project3D(dims.width / 2, groundY, dims.depth / 2, cx, cy);
+      const midFrontX = (pFrontL.px + pFrontR.px) / 2;
+      const midFrontY = (pFrontL.py + pFrontR.py) / 2 + 20;
+      ctx.fillText(`WIDTH: ${dims.width} mm`, midFrontX - 50, midFrontY);
+
+      const pSideF = project3D(dims.width / 2, groundY, dims.depth / 2, cx, cy);
+      const pSideB = project3D(dims.width / 2, groundY, -dims.depth / 2, cx, cy);
+      const midSideX = (pSideF.px + pSideB.px) / 2 + 15;
+      const midSideY = (pSideF.py + pSideB.py) / 2;
+      ctx.fillText(`DEPTH: ${dims.depth} mm`, midSideX, midSideY);
+
+      const pHeightTop = project3D(dims.width / 2 + 35, groundY - dims.height, 0, cx, cy);
+      const pHeightBtm = project3D(dims.width / 2 + 35, groundY, 0, cx, cy);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(`HEIGHT: ${dims.height} mm`, pHeightTop.px + 10, (pHeightTop.py + pHeightBtm.py) / 2);
+    }
+
+    function hexToRgba(hex, alpha) {
+      if (!hex || !hex.startsWith('#')) return `rgba(0,240,255,${alpha})`;
+      let c = hex.replace('#', '');
+      if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+      const num = parseInt(c, 16);
+      return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+    }
+
+    // Tab Switching
+    function switchTab(tabName) {
+      if (tabName === 'spec') {
+        tabBtnSpec.className = 'btn-hud active';
+        tabBtnParts.className = 'btn-hud gold';
+        tabViewSpec.style.display = 'flex';
+        tabViewParts.style.display = 'none';
+      } else {
+        tabBtnSpec.className = 'btn-hud';
+        tabBtnParts.className = 'btn-hud gold active';
+        tabViewSpec.style.display = 'none';
+        tabViewParts.style.display = 'flex';
+        ensureDefaultComponents();
+        renderPartList();
+        updateInspector();
+      }
+    }
+    tabBtnSpec.addEventListener('click', () => switchTab('spec'));
+    tabBtnParts.addEventListener('click', () => switchTab('parts'));
+
+    // Default Components Fallback
+    function ensureDefaultComponents() {
+      if (bp.components && bp.components.length > 0) return;
+      const d = bp.dimensions;
+      const W = d.width || 1200;
+      const D = d.depth || 600;
+      const H = d.height || 750;
+      const T = d.thickness || 24;
+      bp.components = [
+        { name: "1차 메인 상판 (Primary Board)", shape: "box", x: -W/2, y: H - T, z: -D/2, w: W, h: T, d: D, color: "#00f0ff" },
+        { name: "하부 좌측 지지 다리 (Left Leg)", shape: "box", x: -W/2 + 60, y: 0, z: D/2 - 60, w: 40, h: H - T, d: 40, color: "#ffd700" },
+        { name: "하부 우측 지지 다리 (Right Leg)", shape: "box", x: W/2 - 100, y: 0, z: D/2 - 60, w: 40, h: H - T, d: 40, color: "#ffd700" },
+        { name: "벽면 고정 백플레이트 (Wall Mount)", shape: "box", x: -W/2 - 40, y: H - 120, z: -D/2 - 30, w: W + 80, h: 280, d: 30, color: "#38bdf8" }
+      ];
+      if (d.hasSecondaryBoard) {
+        bp.components.push({
+          name: "2차 결합 확장 상판 (Secondary Board)", shape: "box", x: -W/2, y: H - T, z: D/2, w: W, h: T, d: D, color: "#ffd700"
+        });
+      }
+    }
+
+    // Part Manager List & Selection
+    function renderPartList() {
+      if (!partListContainer || !countPartsBadge) return;
+      if (!bp.components) bp.components = [];
+      countPartsBadge.textContent = bp.components.length;
+
+      if (bp.components.length === 0) {
+        partListContainer.innerHTML = '<div style="color:var(--text-dim); font-size:12px; text-align:center; padding:20px 0;">등록된 3D 파츠가 없습니다.<br>상단 [+ 새 파츠 추가]를 눌러보세요.</div>';
+        return;
+      }
+
+      partListContainer.innerHTML = bp.components.map((p, idx) => {
+        const isSelected = (idx === selectedPartIndex);
+        const col = p.color || '#00f0ff';
+        return `
+          <div class="part-item-card ${isSelected ? 'selected' : ''}" data-idx="${idx}">
+            <div style="display:flex; align-items:center; overflow:hidden; gap:6px;">
+              <span class="part-color-dot" style="background:${col}; box-shadow:0 0 6px ${col};"></span>
+              <span style="font-size:12px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name || '파츠 ' + (idx + 1)}</span>
+            </div>
+            <div class="part-dim-chip">${p.w}×${p.d}×${p.h}</div>
+          </div>
+        `;
+      }).join('');
+
+      partListContainer.querySelectorAll('.part-item-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(card.dataset.idx, 10);
+          selectPart(idx);
+        });
+      });
+    }
+
+    function selectPart(idx) {
+      if (idx < 0 || !bp.components || idx >= bp.components.length) {
+        selectedPartIndex = -1;
+      } else {
+        selectedPartIndex = idx;
+      }
+      renderPartList();
+      updateInspector();
+    }
+
+    function updateInspector() {
+      if (!inspectorForm || !inspectorEmptyMsg) return;
+      if (selectedPartIndex < 0 || !bp.components || !bp.components[selectedPartIndex]) {
+        inspectorForm.style.display = 'none';
+        inspectorEmptyMsg.style.display = 'block';
+        return;
+      }
+      inspectorForm.style.display = 'flex';
+      inspectorEmptyMsg.style.display = 'none';
+
+      const p = bp.components[selectedPartIndex];
+      inspPartName.value = p.name || '';
+      inspPartW.value = p.w !== undefined ? p.w : 100;
+      inspPartH.value = p.h !== undefined ? p.h : 20;
+      inspPartD.value = p.d !== undefined ? p.d : 100;
+      inspPartX.value = p.x !== undefined ? p.x : 0;
+      inspPartY.value = p.y !== undefined ? p.y : 0;
+      inspPartZ.value = p.z !== undefined ? p.z : 0;
+    }
+
+    function applyInspectorChanges() {
+      if (selectedPartIndex < 0 || !bp.components || !bp.components[selectedPartIndex]) return;
+      const p = bp.components[selectedPartIndex];
+      p.name = inspPartName.value.trim() || p.name;
+      p.w = Math.max(1, parseInt(inspPartW.value, 10) || p.w);
+      p.h = Math.max(1, parseInt(inspPartH.value, 10) || p.h);
+      p.d = Math.max(1, parseInt(inspPartD.value, 10) || p.d);
+      p.x = parseInt(inspPartX.value, 10) || 0;
+      p.y = parseInt(inspPartY.value, 10) || 0;
+      p.z = parseInt(inspPartZ.value, 10) || 0;
+      p.isUserEdited = true;
+      markUserInteraction();
+      renderPartList();
+      persistManualChanges();
+    }
+
+    [inspPartName, inspPartW, inspPartH, inspPartD, inspPartX, inspPartY, inspPartZ].forEach(el => {
+      if (el) el.addEventListener('input', applyInspectorChanges);
+    });
+
+    document.querySelectorAll('#colorChipPalette .color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        if (selectedPartIndex < 0 || !bp.components || !bp.components[selectedPartIndex]) return;
+        bp.components[selectedPartIndex].color = chip.dataset.col;
+        bp.components[selectedPartIndex].isUserEdited = true;
+        markUserInteraction();
+        renderPartList();
+        persistManualChanges();
+      });
+    });
+
+    btnAddCustomPart.addEventListener('click', () => {
+      markUserInteraction();
+      ensureDefaultComponents();
+      const count = bp.components.length + 1;
+      const newPart = {
+        name: `신규 커스텀 파츠 ${count}`,
+        shape: 'box',
+        x: 0,
+        y: Math.round((bp.dimensions.height || 550) * 0.75),
+        z: 0,
+        w: 240,
+        h: 24,
+        d: 240,
+        color: '#00ffaa',
+        isCustom: true,
+        isUserEdited: true
+      };
+      bp.components.push(newPart);
+      selectedPartIndex = bp.components.length - 1;
+      switchTab('parts');
+      renderPartList();
+      updateInspector();
+      persistManualChanges();
+      setTimeout(() => {
+        const lastCard = partListContainer.lastElementChild;
+        if (lastCard) lastCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    });
+
+    btnDuplicatePart.addEventListener('click', () => {
+      if (selectedPartIndex < 0 || !bp.components || !bp.components[selectedPartIndex]) return;
+      markUserInteraction();
+      const orig = bp.components[selectedPartIndex];
+      const clone = JSON.parse(JSON.stringify(orig));
+      clone.name = `${orig.name} (복제)`;
+      clone.x += 30;
+      clone.z += 30;
+      clone.isCustom = true;
+      clone.isUserEdited = true;
+      bp.components.push(clone);
+      selectedPartIndex = bp.components.length - 1;
+      renderPartList();
+      updateInspector();
+      persistManualChanges();
+    });
+
+    btnDeletePart.addEventListener('click', () => {
+      if (selectedPartIndex < 0 || !bp.components || !bp.components[selectedPartIndex]) return;
+      markUserInteraction();
+      bp.components.splice(selectedPartIndex, 1);
+      if (selectedPartIndex >= bp.components.length) {
+        selectedPartIndex = bp.components.length - 1;
+      }
+      renderPartList();
+      updateInspector();
+      persistManualChanges();
+    });
+
+    // 3D Screen Point-in-polygon & Hit Testing
+    function pointInPoly(pt, poly) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].px, yi = poly[i].py;
+        const xj = poly[j].px, yj = poly[j].py;
+        const intersect = ((yi > pt.y) !== (yj > pt.y)) && (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function getComponentAtScreenPoint(sx, sy) {
+      const sortedHits = [...renderedComponentHitboxes].sort((a, b) => a.depth - b.depth);
+      for (const hit of sortedHits) {
+        for (const poly of hit.faces) {
+          if (pointInPoly({ x: sx, y: sy }, poly)) {
+            return hit.idx;
+          }
+        }
+      }
+      return -1;
+    }
+
+    // Dynamic Kinematics & Parametric Coordinate Solver
+    function recomputeComponents(dims) {
+      if (!bp.components || bp.components.length === 0) return;
+
+      const W = dims.width;
+      const D = dims.depth;
+      const H = dims.height;
+      const T = dims.thickness || 20;
+      const foldAngle = dims.foldAngle !== undefined ? dims.foldAngle : 90;
+      const foldRatio = Math.max(0, Math.min(90, foldAngle)) / 90;
+
+      // Check if this assembly is a lift-top coffee table
+      const isLiftTable = bp.category === 'LIFT_TOP_COFFEE_TABLE' ||
+                          /리프트|lift/i.test(bp.itemName || '') ||
+                          bp.components.some(c => /리프트|오픈\s*수납|힌지\s*암/i.test(c.name || ''));
+
+      if (isLiftTable) {
+        const legH = 70;
+        const closedH = Math.min(420, Math.round(H * 0.7));
+        const boxH = closedH - legH;
+        const splitRatio = 0.36;
+        const leftW = Math.round(W * splitRatio);
+        const rightW = W - leftW;
+        const divX = -W / 2 + leftW;
+        const legInset = 35;
+        const legSize = 38;
+
+        const liftY = closedH + Math.round((H - closedH) * foldRatio);
+        const liftZ = -D / 2 + Math.round(120 * foldRatio);
+        const armH = Math.max(8, Math.round((H - closedH) * foldRatio));
+        const armY = Math.round((closedH + liftY) / 2) - 35;
+
+        for (const c of bp.components) {
+          if (c.isUserEdited) continue; // Respect user manual tweaks
+          const nm = c.name || '';
+          if (nm.includes('FL')) {
+            c.x = -W/2 + legInset; c.y = 0; c.z = D/2 - legInset - legSize; c.w = legSize; c.h = legH; c.d = legSize;
+          } else if (nm.includes('FR')) {
+            c.x = W/2 - legInset - legSize; c.y = 0; c.z = D/2 - legInset - legSize; c.w = legSize; c.h = legH; c.d = legSize;
+          } else if (nm.includes('BL')) {
+            c.x = -W/2 + legInset; c.y = 0; c.z = -D/2 + legInset; c.w = legSize; c.h = legH; c.d = legSize;
+          } else if (nm.includes('BR')) {
+            c.x = W/2 - legInset - legSize; c.y = 0; c.z = -D/2 + legInset; c.w = legSize; c.h = legH; c.d = legSize;
+          } else if (nm.includes('베이스') || nm.includes('Bottom Base')) {
+            c.x = -W/2; c.y = legH; c.z = -D/2; c.w = W; c.h = T; c.d = D;
+          } else if (nm.includes('좌측 측면') || nm.includes('Left Wall')) {
+            c.x = -W/2; c.y = legH + T; c.z = -D/2; c.w = T; c.h = boxH - T; c.d = D;
+          } else if (nm.includes('우측 측면') || nm.includes('Right Wall')) {
+            c.x = W/2 - T; c.y = legH + T; c.z = -D/2; c.w = T; c.h = boxH - T; c.d = D;
+          } else if (nm.includes('후면 백') || nm.includes('Rear Wall')) {
+            c.x = -W/2 + T; c.y = legH + T; c.z = -D/2; c.w = W - 2*T; c.h = boxH - T; c.d = T;
+          } else if (nm.includes('우측 수납함 전면') || nm.includes('Front Right Wall')) {
+            c.x = divX; c.y = legH + T; c.z = D/2 - T; c.w = rightW; c.h = boxH - T; c.d = T;
+          } else if (nm.includes('좌측 오픈 수납 턱') || nm.includes('Front Open Lip')) {
+            c.x = -W/2 + T; c.y = legH + T; c.z = D/2 - T; c.w = leftW - T; c.h = 45; c.d = T;
+          } else if (nm.includes('중앙 수납 분할 칸막이') || nm.includes('Center Divider')) {
+            c.x = divX; c.y = legH + T; c.z = -D/2 + T; c.w = T; c.h = boxH - T; c.d = D - 2*T;
+          } else if (nm.includes('좌측 고정 보조') || nm.includes('Fixed Low Top')) {
+            c.x = -W/2; c.y = closedH; c.z = -D/2; c.w = leftW + T; c.h = T; c.d = D;
+          } else if (nm.includes('우측 리프트업 메인') || nm.includes('Elevated Lift Top')) {
+            c.x = divX + T; c.y = liftY; c.z = liftZ; c.w = rightW - T; c.h = T; c.d = D;
+          } else if (nm.includes('좌측 스틸 리프트') || nm.includes('L-Arm')) {
+            c.x = divX + 22; c.y = armY; c.z = -25 + Math.round(50 * foldRatio); c.w = 18; c.h = armH; c.d = 35;
+          } else if (nm.includes('우측 스틸 리프트') || nm.includes('R-Arm')) {
+            c.x = W/2 - T - 40; c.y = armY; c.z = -25 + Math.round(50 * foldRatio); c.w = 18; c.h = armH; c.d = 35;
+          }
+        }
+      } else {
+        // Proportional scaling for other models
+        if (bp._lastW && bp._lastD && bp._lastH) {
+          const rw = W / bp._lastW;
+          const rd = D / bp._lastD;
+          const rh = H / bp._lastH;
+          if (rw !== 1 || rd !== 1 || rh !== 1) {
+            for (const c of bp.components) {
+              if (c.isUserEdited) continue;
+              c.x = Math.round(c.x * rw);
+              c.w = Math.max(5, Math.round(c.w * rw));
+              c.z = Math.round(c.z * rd);
+              c.d = Math.max(5, Math.round(c.d * rd));
+              c.y = Math.round(c.y * rh);
+              c.h = Math.max(5, Math.round(c.h * rh));
+            }
+          }
+        }
+      }
+      bp._lastW = W;
+      bp._lastD = D;
+      bp._lastH = H;
+    }
+
+    // Interactive Slider Events
+    rangeW.addEventListener('input', (e) => {
+      markUserInteraction();
+      bp.dimensions.width = parseInt(e.target.value, 10);
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    rangeD.addEventListener('input', (e) => {
+      markUserInteraction();
+      bp.dimensions.depth = parseInt(e.target.value, 10);
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    rangeH.addEventListener('input', (e) => {
+      markUserInteraction();
+      bp.dimensions.height = parseInt(e.target.value, 10);
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    rangeFA.addEventListener('input', (e) => {
+      markUserInteraction();
+      bp.dimensions.foldAngle = parseInt(e.target.value, 10);
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    rangeL2.addEventListener('input', (e) => {
+      markUserInteraction();
+      bp.dimensions.leaf2Angle = parseInt(e.target.value, 10);
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+
+    // Component Toggles
+    btnToggleL2.addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.hasSecondaryBoard = !bp.dimensions.hasSecondaryBoard;
+      updateUI();
+      persistManualChanges();
+    });
+    btnToggleLegs.addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.hasLegs = !bp.dimensions.hasLegs;
+      updateUI();
+      persistManualChanges();
+    });
+    btnToggleStruts.addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.hasStruts = !bp.dimensions.hasStruts;
+      updateUI();
+      persistManualChanges();
+    });
+    btnToggleWall.addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.hasWallMount = !bp.dimensions.hasWallMount;
+      updateUI();
+      persistManualChanges();
+    });
+
+    // Floating Tools
+    btnAutoSpinEl.addEventListener('click', () => {
+      isAutoSpin = !isAutoSpin;
+      btnAutoSpinEl.className = `tool-btn ${isAutoSpin ? 'active' : ''}`;
+    });
+    document.getElementById('btnTopView').addEventListener('click', () => {
+      isAutoSpin = false;
+      btnAutoSpinEl.className = 'tool-btn';
+      rotX = -85;
+      rotY = 0;
+    });
+    document.getElementById('btnFrontView').addEventListener('click', () => {
+      isAutoSpin = false;
+      btnAutoSpinEl.className = 'tool-btn';
+      rotX = 0;
+      rotY = 0;
+    });
+    document.getElementById('btnResetCam').addEventListener('click', () => {
+      rotX = -22;
+      rotY = 32;
+      zoom = 1.0;
+      panX = 0;
+      panY = 0;
+    });
+
+    // Presets
+    document.getElementById('presetFolded').addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.foldAngle = 0;
+      rangeFA.value = 0;
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    document.getElementById('presetOpen').addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.foldAngle = 90;
+      rangeFA.value = 90;
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    document.getElementById('presetLong').addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.width = 1600;
+      rangeW.value = 1600;
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+    document.getElementById('presetDual').addEventListener('click', () => {
+      markUserInteraction();
+      bp.dimensions.hasSecondaryBoard = true;
+      bp.dimensions.leaf2Angle = 180;
+      rangeL2.value = 180;
+      recomputeComponents(bp.dimensions);
+      updateUI();
+      persistManualChanges();
+    });
+
+    // Mouse Drag Rotation, Picking & Wheel Zoom
+    let mouseDownPos = { x: 0, y: 0 };
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      mouseDownPos = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        rotY += dx * 0.45;
+        rotX = Math.max(-88, Math.min(88, rotX + dy * 0.45));
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) {
+        const rect = canvas.getBoundingClientRect();
+        const hit = getComponentAtScreenPoint(e.clientX - rect.left, e.clientY - rect.top);
+        canvas.style.cursor = hit >= 0 ? 'pointer' : 'grab';
+      }
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (isDragging) {
+        const dist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+        if (dist < 5) {
+          const rect = canvas.getBoundingClientRect();
+          const hitIdx = getComponentAtScreenPoint(e.clientX - rect.left, e.clientY - rect.top);
+          if (hitIdx >= 0) {
+            selectPart(hitIdx);
+            switchTab('parts');
+          } else {
+            selectPart(-1);
+          }
+        }
+      }
+      isDragging = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      zoom = Math.max(0.4, Math.min(2.5, zoom * zoomFactor));
+    }, { passive: false });
+
+    // Sync button
+    document.getElementById('btnSyncJarvis').addEventListener('click', loadLatestBlueprint);
+
+    // Export PNG
+    document.getElementById('btnExportPng').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = `JARVIS_CAD_${bp.itemName.replace(/\\s+/g, '_')}_${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Init
+    resizeCanvas();
+    loadLatestBlueprint();
+    updateUI();
+    requestAnimationFrame(render);
+
+    // Photo Reverse-Engineering & Overlay Handlers
+    btnUploadPhoto.addEventListener('click', async () => {
+      if (window.jarvisAPI && window.jarvisAPI.selectImageFile) {
+        try {
+          const fileData = await window.jarvisAPI.selectImageFile();
+          if (fileData && fileData.base64) {
+            analyzePhotoBase64(fileData.base64, fileData.mimeType || 'image/jpeg');
+          }
+        } catch (err) {
+          console.warn('Native file dialog fallback:', err);
+          filePhotoInput.click();
+        }
+      } else {
+        filePhotoInput.click();
+      }
+    });
+
+    filePhotoInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handlePhotoFile(e.target.files[0]);
+      }
+    });
+
+    // Prevent default browser drag behaviors everywhere
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evtName => {
+      window.addEventListener(evtName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, false);
+      document.body.addEventListener(evtName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, false);
+    });
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dropOverlay.classList.add('active');
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      dropOverlay.classList.add('active');
+    });
+
+    dropOverlay.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      dropOverlay.classList.add('active');
+    });
+
+    dropOverlay.addEventListener('dragleave', (e) => {
+      if (e.target === dropOverlay) {
+        dropOverlay.classList.remove('active');
+      }
+    });
+
+    dropOverlay.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropOverlay.classList.remove('active');
+      const dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length > 0) {
+        handlePhotoFile(dt.files[0]);
+      }
+    });
+
+    function handlePhotoFile(file) {
+      if (!file) return;
+      const isImg = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp|gif)$/i.test(file.name || '');
+      if (!isImg) {
+        alert('이미지 파일(JPG, PNG, WEBP 등)만 지원됩니다.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        analyzePhotoBase64(ev.target.result, file.type || 'image/jpeg');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function analyzePhotoBase64(base64Data, mimeType) {
+      analyzingModal.classList.add('active');
+      analyzingStepText.textContent = '1단계: 가구 외곽선 및 배경 분리 중...';
+
+      try {
+        analyzingStepText.textContent = '2단계: AI 3차원 기하 구조 및 부품 역설계 중...';
+
+        const res = await fetch('/api/cad/analyze-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: base64Data,
+            mimeType: mimeType || 'image/jpeg',
+            instruction: '가구 배경을 빼고 입체면과 설계도로 띄워줘.'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || '사진 분석 실패');
+        }
+
+        const data = await res.json();
+        if (data && data.blueprint) {
+          analyzingStepText.textContent = '3단계: 3D 홀로그램 투영 렌더링 완료!';
+          setTimeout(() => {
+            analyzingModal.classList.remove('active');
+            data.blueprint.sourcePhoto = base64Data;
+            applyBlueprintData(data.blueprint);
+            persistManualChanges();
+          }, 600);
+        }
+      } catch (err) {
+        console.error('Photo analysis error:', err);
+        analyzingStepText.textContent = `오류 발생: ${err.message}`;
+        setTimeout(() => {
+          analyzingModal.classList.remove('active');
+          alert(`가구 사진 분석 중 오류가 발생했습니다: ${err.message}`);
+        }, 1500);
+      }
+    }
+
+    // Photo Overlay Toggle
+    btnTogglePhotoOverlay.addEventListener('click', () => {
+      isPhotoOverlayActive = !isPhotoOverlayActive;
+      btnTogglePhotoOverlay.textContent = isPhotoOverlayActive ? 'ON' : 'OFF';
+      btnTogglePhotoOverlay.className = `switch-btn ${isPhotoOverlayActive ? 'active' : ''}`;
+      groupPhotoOpacity.style.display = isPhotoOverlayActive ? 'flex' : 'none';
+    });
+
+    rangePhotoOpacity.addEventListener('input', (e) => {
+      photoOverlayAlpha = parseInt(e.target.value, 10) / 100;
+      valPhotoOpacity.textContent = `${e.target.value}%`;
+    });
+
+    // Real-time live synchronization with JARVIS (every 1.2s)
+    setInterval(loadLatestBlueprint, 1200);
+
+    // Instantaneous cross-window synchronization via LocalStorage event
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'jarvis_latest_blueprint' && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data && data.dimensions) applyBlueprintData(data);
+        } catch (err) {}
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUANTUM PARTICLE SYSTEM - JARVIS v1.0.9</title>
+    <style>
+        :root {
+            --glow-color: #00f0ff;
+            --glow-secondary: #0072ff;
+            --bg-color: #030712;
+            --panel-bg: rgba(5, 15, 30, 0.75);
+            --panel-border: rgba(0, 240, 255, 0.3);
+            --font-family: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            color: #e0f7fc;
+        }
+
+        /* Futuristic Grid Background */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background-image: 
+                radial-gradient(circle at center, transparent 30%, rgba(3, 7, 18, 0.9) 100%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* HUD Overlay styling */
+        .hud-element {
+            position: absolute;
+            z-index: 10;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1), inset 0 0 15px rgba(0, 240, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .hud-element:hover {
+            border-color: var(--glow-color);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.2), inset 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+
+        /* Header Title */
+        header {
+            top: 20px;
+            left: 20px;
+            width: calc(100% - 40px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--glow-color);
+            padding-bottom: 10px;
+            background: transparent !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            pointer-events: none !important;
+        }
+
+        .title-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #fff;
+            text-shadow: 0 0 10px var(--glow-color), 0 0 20px var(--glow-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: var(--glow-color);
+            box-shadow: 0 0 10px var(--glow-color);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: #8ab4f8;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        /* Diagnostic Panel (Left) */
+        #diagnostic-panel {
+            top: 100px;
+            left: 20px;
+            width: 260px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--glow-color);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            padding-bottom: 6px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            color: #8ab4f8;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+        }
+
+        /* Control Panel (Right) */
+        #control-panel {
+            top: 100px;
+            right: 20px;
+            width: 300px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: #8ab4f8;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            background: rgba(0, 240, 255, 0.1);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--glow-color);
+            box-shadow: 0 0 8px var(--glow-color);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-val {
+            width: 40px;
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--glow-color);
+            font-weight: bold;
+        }
+
+        .btn {
+            width: 100%;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--glow-color);
+            color: #fff;
+            padding: 10px;
+            font-family: var(--font-family);
+            font-size: 0.8rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+        }
+
+        .btn:hover {
+            background: var(--glow-color);
+            color: #000;
+            box-shadow: 0 0 15px var(--glow-color);
+            text-shadow: none;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Instruction Overlay (Bottom) */
+        #instruction {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            color: rgba(0, 240, 255, 0.7);
+            animation: breathe 2s infinite alternate;
+            background: rgba(5, 15, 30, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            padding: 8px 20px;
+            border-radius: 20px;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        /* Sci-fi corners for HUD elements */
+        .scifi-corner {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border: 2px solid var(--glow-color);
+            pointer-events: none;
+        }
+
+        .top-left { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .top-right { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .bottom-right { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 5px var(--glow-color); }
+            100% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 15px var(--glow-color); }
+        }
+
+        @keyframes breathe {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #control-panel {
+                bottom: 80px;
+                top: auto;
+                left: 20px;
+                right: 20px;
+                width: calc(100% - 40px);
+            }
+            #diagnostic-panel {
+                display: none;
+            }
+            #instruction {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <header class="hud-element" style="position: absolute; z-index: 10;">
+        <div class="title-container">
+            <h1>QUANTUM CORE</h1>
+            <div class="subtitle">MULTI-AGENT PARTICLE ENGINE // SYSTEM ACTIVE</div>
+        </div>
+    </header>
+
+    <!-- Diagnostic Panel -->
+    <div id="diagnostic-panel" class="hud-element">
+        <div class="scifi-corner top-left"></div>
+        <div class="scifi-corner top-right"></div>
+        <div class="scifi-corner bottom-left"></div>
+        <div class="scifi-corner bottom-right"></div>
+        
+        <div class="panel-title">
+            <span>DIAGNOSTICS</span>
+            <span style="color: #00ff66; font-size: 0.7rem; animation: breathe 1s infinite alternate;">● ONLINE</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">PARTICLE COUNT:</span>
+            <span class="stat-value" id="val-particles">35,000</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">ACTIVE BURST:</span>
+            <span class="stat-value" id="val-active">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">FPS:</span>
+            <span class="stat-value" id="val-fps">60</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">SYSTEM TEMP:</span>
+            <span class="stat-value" id="val-temp">34.2 °C</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">GRAVITY WELL:</span>
+            <span class="stat-value" id="val-gravity-status" style="color: #ff3366;">OFF</span>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel" class="hud-element">
+        <div class="scifi-corner top-left"></div>
+        <div class="scifi-corner top-right"></div>
+        <div class="scifi-corner bottom-left"></div>
+        <div class="scifi-corner bottom-right"></div>
+
+        <div class="panel-title">CONTROL INTERFACE</div>
+
+        <div class="control-group">
+            <label for="range-speed">ROTATION SPEED</label>
+            <div class="slider-container">
+                <input type="range" id="range-speed" min="0.1" max="3" step="0.1" value="1">
+                <span class="slider-val" id="lbl-speed">1.0</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="range-gravity">QUANTUM GRAVITY</label>
+            <div class="slider-container">
+                <input type="range" id="range-gravity" min="-2" max="5" step="0.2" value="0.5">
+                <span class="slider-val" id="lbl-gravity">0.5</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="range-size">PARTICLE SCALE</label>
+            <div class="slider-container">
+                <input type="range" id="range-size" min="0.5" max="4" step="0.1" value="1.5">
+                <span class="slider-val" id="lbl-size">1.5</span>
+            </div>
+        </div>
+
+        <div class="control-group" style="margin-top: 20px;">
+            <button class="btn" id="btn-burst">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                TRIGGER QUANTUM BURST
+            </button>
+            <button class="btn" id="btn-color" style="margin-color: #0072ff; border-color: #0072ff; margin-top: 10px;">
+                SHIFT SPECTRUM
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Instruction -->
+    <div id="instruction">
+        [ LEFT-CLICK ] TRIGGER EXPLOSION // [ HOLD RIGHT-CLICK ] ACTIVATE GRAVITY WELL // [ DRAG ] ROTATE VIEW
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const CONFIG = {
+            coreCount: 15000,
+            ringCount: 10000,
+            burstPoolSize: 15000,
+            colors: [
+                { primary: 0x00f0ff, secondary: 0x0072ff }, // Cyan-Blue (Default)
+                { primary: 0xff0055, secondary: 0x7a00ff }, // Magenta-Purple
+                { primary: 0x00ff66, secondary: 0x00a3ff }, // Green-Blue
+                { primary: 0xffaa00, secondary: 0xff0055 }  // Gold-Red
+            ],
+            currentPaletteIndex: 0
+        };
+
+        // --- STATE VARIABLES ---
+        let scene, camera, renderer, controls;
+        let coreParticles, ringParticles, burstParticles;
+        let coreGeometry, ringGeometry, burstGeometry;
+        let burstVelocities, burstLifes, burstMaxLifes, burstColorsArray;
+        let burstIndex = 0;
+        let clock = new THREE.Clock();
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let isRightMouseDown = false;
+        let gravityWellPoint = new THREE.Vector3();
+
+        // UI Modifiers
+        let rotationSpeedModifier = 1.0;
+        let gravityModifier = 0.5;
+        let particleScaleModifier = 1.5;
+
+        // Diagnostic Trackers
+        let lastFpsUpdate = 0;
+        let frames = 0;
+
+        // --- INITIALIZATION ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x030712, 0.005);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);

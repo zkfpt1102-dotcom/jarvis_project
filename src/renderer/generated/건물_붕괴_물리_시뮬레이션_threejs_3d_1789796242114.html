@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOLOGRAPHIC STRUCTURAL COLLAPSE SIMULATION</title>
+    <style>
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-blue: #0066ff;
+            --neon-red: #ff0055;
+            --bg-dark: #030712;
+            --panel-bg: rgba(3, 7, 18, 0.85);
+            --panel-border: rgba(0, 240, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            font-family: 'Share Tech Mono', 'Courier New', Courier, monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* JARVIS HUD Overlay */
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 320px 1fr 320px;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Glassmorphism Panel */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(12px);
+            border-radius: 4px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 0 20px rgba(0, 102, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: rgba(0, 240, 255, 0.6);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.25), inset 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+
+        /* Header / Title */
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--neon-cyan);
+            padding-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            color: var(--neon-cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .system-status {
+            font-size: 0.9rem;
+            color: var(--neon-blue);
+            text-align: right;
+        }
+
+        /* Left Panel - Controls */
+        .left-panel {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        /* Right Panel - Telemetry */
+        .right-panel {
+            grid-column: 3;
+            grid-row: 2;
+            justify-content: space-between;
+        }
+
+        /* Bottom Status Bar */
+        footer {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: rgba(0, 240, 255, 0.6);
+            border-top: 1px solid rgba(0, 240, 255, 0.2);
+            padding-top: 10px;
+        }
+
+        /* UI Elements */
+        .panel-title {
+            font-size: 1.1rem;
+            color: var(--neon-cyan);
+            border-left: 3px solid var(--neon-cyan);
+            padding-left: 8px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        label span {
+            color: var(--neon-cyan);
+        }
+
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: rgba(0, 102, 255, 0.2);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 8px var(--neon-cyan);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Cyber Button */
+        .btn {
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid var(--neon-blue);
+            color: #fff;
+            padding: 12px 20px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+            transition: all 0.4s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            text-shadow: 0 0 5px #fff;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-danger {
+            border-color: var(--neon-red);
+            background: rgba(255, 0, 85, 0.05);
+        }
+        .btn-danger:hover {
+            background: rgba(255, 0, 85, 0.2);
+            border-color: #ff3377;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+        }
+
+        /* Telemetry Data Grid */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .telemetry-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(0, 102, 255, 0.1);
+            padding: 10px;
+            border-radius: 2px;
+        }
+
+        .telemetry-label {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .telemetry-val {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--neon-cyan);
+            margin-top: 5px;
+        }
+
+        /* Crosshair in center for shooting guidance */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.3;
+            transition: opacity 0.3s, scale 0.2s;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-cyan);
+        }
+        .crosshair::before {
+            top: 19px; left: 0; width: 40px; height: 2px;
+        }
+        .crosshair::after {
+            left: 19px; top: 0; width: 2px; height: 40px;
+        }
+        .crosshair-dot {
+            position: absolute;
+            top: 17px; left: 17px; width: 6px; height: 6px;
+            background: var(--neon-red);
+            border-radius: 50%;
+        }
+
+        /* Instructions overlay */
+        .instructions {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+            animation: breathe 3s ease-in-out infinite;
+        }
+
+        .instructions p {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+            background: rgba(3, 7, 18, 0.6);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 15px var(--neon-cyan); }
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.9; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            .hud-layer {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
+                overflow-y: auto;
+                pointer-events: auto;
+            }
+            .panel {
+                pointer-events: auto;
+            }
+            .left-panel { grid-column: 1; grid-row: 2; }
+            .right-panel { grid-column: 1; grid-row: 3; }
+            .instructions { display: none; }
+        }
+    </style>
+    <!-- Google Fonts for Sci-Fi look -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="crosshair" id="crosshair">
+        <div class="crosshair-dot"></div>
+    </div>
+
+    <div class="instructions">
+        <p>화면을 클릭하여 고에너지 플라즈마 탄환을 발사하세요 (구조물 타격)</p>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div class="hud-layer">
+        <header>
+            <h1>STRUCTURAL COLLAPSE LAB</h1>
+            <div class="system-status">
+                SYSTEM STATUS: <span style="color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan);">ONLINE</span><br>
+                PHYSICS ENGINE: <span style="color: var(--neon-cyan);">ACTIVE v2.4</span>
+            </div>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="panel left-panel interactive">
+            <div class="panel-title">Simulation Control</div>
+            
+            <div class="control-group">
+                <label>Structure Type</label>
+                <button class="btn" id="btn-change-type" style="font-size: 0.8rem; padding: 8px;">Skyscraper (Grid)</button>
+            </div>
+
+            <div class="control-group">
+                <label>Tower Height <span id="val-height">10 Floors</span></label>
+                <input type="range" id="slide-height" min="5" max="15" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>Gravity <span id="val-gravity">9.8 m/s²</span></label>
+                <input type="range" id="slide-gravity" min="0" max="25" step="0.1" value="9.8">
+            </div>
+
+            <div class="control-group">
+                <label>Debris Lifespan <span id="val-lifespan">8s</span></label>
+                <input type="range" id="slide-lifespan" min="3" max="20" value="8">
+            </div>
+
+            <button class="btn btn-danger" id="btn-demolish">Trigger Base Demolition</button>
+            <button class="btn" id="btn-reset" style="border-color: var(--neon-cyan);">Reset Simulation</button>
+        </div>
+
+        <!-- Telemetry Panel -->
+        <div class="panel right-panel interactive">
+            <div>
+                <div class="panel-title">Telemetry Data</div>
+                <div class="telemetry-grid" style="margin-top: 15px;">
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">Active Objects</div>
+                        <div class="telemetry-val" id="tel-objects">0</div>
+                    </div>
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">FPS</div>
+                        <div class="telemetry-val" id="tel-fps">60</div>
+                    </div>
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">Integrity</div>
+                        <div class="telemetry-val" id="tel-integrity" style="color: var(--neon-cyan);">100%</div>
+                    </div>
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">Impact Energy</div>
+                        <div class="telemetry-val" id="tel-energy" style="color: var(--neon-red);">0.0 GJ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group" style="border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 15px;">
+                <div class="panel-title" style="font-size: 0.9rem;">Weapon Config</div>
+                <label>Projectile Mass <span id="val-mass">500 kg</span></label>
+                <input type="range" id="slide-mass" min="100" max="2000" step="50" value="5

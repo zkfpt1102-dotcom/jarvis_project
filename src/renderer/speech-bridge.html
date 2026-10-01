@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>JARVIS Invisible Background Speech Engine</title>
+  <style>
+    body { background: #000; color: #00f0ff; font-family: sans-serif; font-size: 12px; margin: 0; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div id="status">INIT_VOICE_ENGINE</div>
+  <div id="heard">STANDBY</div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const heardEl = document.getElementById('heard');
+    let recognition = null;
+    let isRecognizing = false;
+
+    // Heartbeat check: If JARVIS main server terminates, automatically close this background process
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/bridge-status');
+        if (!res.ok) window.close();
+      } catch (e) {
+        window.close();
+      }
+    }, 5000);
+
+    function startRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        statusEl.textContent = 'SpeechRecognition not supported in this browser';
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'ko-KR';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isRecognizing = true;
+        statusEl.textContent = 'LISTENING (0ms Native Korean STT Active)';
+      };
+
+      recognition.onresult = async (event) => {
+        const lastIndex = event.results.length - 1;
+        const result = event.results[lastIndex];
+        if (result.isFinal) {
+          const text = result[0].transcript.trim();
+          heardEl.textContent = 'HEARD: ' + text;
+          console.log('[SPEECH BRIDGE HEARD]:', text);
+          try {
+            await fetch('/api/speech/event', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ transcript: text, isFinal: true })
+            });
+          } catch (e) {
+            console.error('Failed to send speech event:', e);
+          }
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition event warning:', event.error);
+        statusEl.textContent = 'STATUS: ' + event.error;
+      };
+
+      recognition.onend = () => {
+        isRecognizing = false;
+        statusEl.textContent = 'RECONNECTING...';
+        setTimeout(() => {
+          try {
+            if (!isRecognizing) recognition.start();
+          } catch (e) {}
+        }, 150);
+      };
+
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error('Recognition start exception:', e);
+      }
+    }
+
+    // Auto-request mic permission to connect hardware
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => startRecognition())
+        .catch(() => startRecognition());
+    } else {
+      startRecognition();
+    }
+  </script>
+</body>
+</html>

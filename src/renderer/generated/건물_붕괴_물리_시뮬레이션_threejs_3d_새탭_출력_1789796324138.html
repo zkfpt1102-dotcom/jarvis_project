@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holographic Structural Collapse Simulation</title>
+    <style>
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-blue: #0077ff;
+            --neon-orange: #ff5500;
+            --bg-dark: #020813;
+            --panel-bg: rgba(2, 12, 28, 0.75);
+            --panel-border: rgba(0, 240, 255, 0.25);
+            --font-tech: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: var(--font-tech);
+            color: #ffffff;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            grid-template-rows: 80px 1fr 100px;
+            padding: 20px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / span 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            background: linear-gradient(180deg, rgba(2, 8, 19, 0.9) 0%, rgba(2, 8, 19, 0) 100%);
+            padding: 0 20px;
+            height: 60px;
+        }
+
+        .title-container h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-container h1::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: var(--neon-cyan);
+            box-shadow: 0 0 8px var(--neon-cyan);
+            animation: blink 1s infinite alternate;
+        }
+
+        .system-status {
+            font-size: 0.8rem;
+            color: var(--neon-blue);
+            text-align: right;
+        }
+
+        /* Left Sidebar - Diagnostics */
+        .left-panel {
+            grid-column: 1;
+            grid-row: 2;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            backdrop-filter: blur(5px);
+            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05);
+            align-self: start;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px dashed var(--panel-border);
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .metric .label {
+            color: #8ab4f8;
+        }
+
+        .metric .value {
+            color: var(--neon-cyan);
+            font-weight: bold;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 8px var(--neon-cyan);
+            transition: width 0.3s ease, background-color 0.5s ease;
+        }
+
+        /* Right Sidebar - Controls */
+        .right-panel {
+            grid-column: 3;
+            grid-row: 2;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            backdrop-filter: blur(5px);
+            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05);
+            align-self: start;
+        }
+
+        .btn {
+            background: rgba(0, 119, 255, 0.1);
+            border: 1px solid var(--neon-blue);
+            color: #ffffff;
+            padding: 12px;
+            font-family: var(--font-tech);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            color: var(--neon-cyan);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-danger {
+            background: rgba(255, 85, 0, 0.1);
+            border-color: var(--neon-orange);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 85, 0, 0.2);
+            border-color: #ffaa00;
+            box-shadow: 0 0 10px rgba(255, 85, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        /* Bottom Center Instructions */
+        .bottom-bar {
+            grid-column: 2;
+            grid-row: 3;
+            place-self: center;
+            text-align: center;
+            background: rgba(2, 8, 19, 0.8);
+            border: 1px solid var(--panel-border);
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            color: var(--neon-cyan);
+            animation: pulse 2s infinite;
+            backdrop-filter: blur(5px);
+            margin-bottom: 20px;
+        }
+
+        /* Reticle in Center */
+        .reticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+
+        .reticle::before, .reticle::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-cyan);
+        }
+
+        .reticle::before {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            transform: translateY(-50%);
+        }
+
+        .reticle::after {
+            left: 50%;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            transform: translateX(-50%);
+        }
+
+        .reticle-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--neon-cyan);
+            border-radius: 50%;
+        }
+
+        /* Animations */
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 5px rgba(0, 240, 255, 0.2); }
+            50% { box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); }
+            100% { box-shadow: 0 0 5px rgba(0, 240, 255, 0.2); }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .hud-overlay {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
+                gap: 10px;
+                overflow-y: auto;
+                pointer-events: auto;
+            }
+            .interactive {
+                pointer-events: auto;
+            }
+            .left-panel, .right-panel {
+                grid-column: 1;
+                margin-top: 10px;
+                align-self: stretch;
+            }
+            .bottom-bar {
+                grid-column: 1;
+                grid-row: 4;
+                position: static;
+                margin-top: 10px;
+            }
+            .reticle {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="reticle">
+        <div class="reticle-circle"></div>
+    </div>
+
+    <div class="hud-overlay">
+        <header>
+            <div class="title-container">
+                <h1>STRUCTURAL COLLAPSE SIMULATION</h1>
+            </div>
+            <div class="system-status">
+                <div>SYSTEM: ACTIVE</div>
+                <div id="time-display">T+00:00:00</div>
+            </div>
+        </header>
+
+        <!-- Left Diagnostics Panel -->
+        <div class="left-panel interactive">
+            <div class="panel-title">Telemetry & Diagnostics</div>
+            <div class="metric">
+                <span class="label">Structural Integrity</span>
+                <span class="value" id="integrity-value">100%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="integrity-bar"></div>
+            </div>
+            <div class="metric">
+                <span class="label">Total Elements</span>
+                <span class="value" id="total-elements">0</span>
+            </div>
+            <div class="metric">
+                <span class="label">Active Physics Bodies</span>
+                <span class="value" id="active-bodies">0</span>
+            </div>
+            <div class="metric">
+                <span class="label">Debris Count</span>
+                <span class="value" id="debris-count">0</span>
+            </div>
+            <div class="metric">
+                <span class="label">Impact Force Grid</span>
+                <span class="value" id="impact-force">0.0 kN</span>
+            </div>
+            <div class="metric">
+                <span class="label">Engine Load</span>
+                <span class="value" id="fps-value">60 FPS</span>
+            </div>
+        </div>
+
+        <!-- Right Controls Panel -->

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Building Collapse Physics Simulation</title>
+    <style>
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-blue: #0072ff;
+            --neon-red: #ff0055;
+            --bg-dark: #020208;
+            --panel-bg: rgba(2, 2, 8, 0.75);
+            --panel-border: rgba(0, 240, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 999;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* HUD Overlay */
+        .hud-panel {
+            position: absolute;
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .hud-panel:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.3);
+        }
+
+        /* Header / Title */
+        #header {
+            top: 20px;
+            left: 20px;
+            width: 400px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        h1::after {
+            content: "ONLINE";
+            font-size: 0.6rem;
+            background: rgba(0, 240, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid var(--neon-cyan);
+            animation: blink 1.5s infinite;
+        }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: #8ab4f8;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            padding-bottom: 10px;
+        }
+
+        /* Telemetry / Stats */
+        .telemetry-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 6px;
+        }
+
+        .telemetry-label {
+            color: #8ab4f8;
+        }
+
+        .telemetry-value {
+            color: var(--neon-cyan);
+            font-weight: bold;
+        }
+
+        .telemetry-value.alert {
+            color: var(--neon-red);
+            text-shadow: 0 0 8px rgba(255, 0, 85, 0.6);
+        }
+
+        /* Controls Panel */
+        #controls {
+            bottom: 20px;
+            left: 20px;
+            width: 400px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 0.75rem;
+            color: #8ab4f8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            border-radius: 3px;
+        }
+
+        button:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            box-shadow: 0 0 15px var(--neon-cyan);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.danger {
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+            background: rgba(255, 0, 85, 0.1);
+        }
+
+        button.danger:hover {
+            background: var(--neon-red);
+            color: #fff;
+            box-shadow: 0 0 15px var(--neon-red);
+        }
+
+        /* Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            margin: 10px 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-cyan);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Instructions Panel */
+        #instructions {
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .instruction-item {
+            display: flex;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .key-cap {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 10px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+            color: var(--neon-cyan);
+        }
+
+        /* Crosshair for targeting */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            display: none; /* Interactive raycast indicator is drawn in 3D instead */
+        }
+
+        /* Bottom Status bar */
+        #status-bar {
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+            font-size: 0.7rem;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+            box-shadow: 0 0 10px var(--neon-cyan);
+            transition: width 0.3s ease;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hud-panel {
+                width: calc(100% - 40px) !important;
+                left: 20px !important;
+                right: 20px !important;
+            }
+            #header { top: 20px; }
+            #instructions { display: none; }
+            #status-bar { display: none; }
+            #controls { bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- HEADER PANEL -->
+    <div id="header" class="hud-panel">
+        <h1>JARVIS-D3</h1>
+        <div class="subtitle">STRUCTURAL COLLAPSE DYNAMICS SIMULATOR</div>
+        
+        <div class="telemetry-row">
+            <span class="telemetry-label">SYSTEM STATUS:</span>
+            <span id="status-text" class="telemetry-value">NOMINAL</span>
+        </div>
+        <div class="telemetry-row">
+            <span class="telemetry-label">STRUCTURAL INTEGRITY:</span>
+            <span id="integrity-text" class="telemetry-value">100%</span>
+        </div>
+        <div class="telemetry-row">
+            <span class="telemetry-label">ACTIVE ENTITIES:</span>
+            <span id="entities-text" class="telemetry-value">0 / 0</span>
+        </div>
+        <div class="telemetry-row">
+            <span class="telemetry-label">KINETIC ENERGY:</span>
+            <span id="energy-text" class="telemetry-value">0.00 J</span>
+        </div>
+    </div>
+
+    <!-- INSTRUCTIONS PANEL -->
+    <div id="instructions" class="hud-panel">
+        <div class="subtitle" style="margin-bottom: 8px; padding-bottom: 4px;">TACTICAL INTERACTION</div>
+        <div class="instruction-item">
+            <span class="key-cap">L-CLICK</span>
+            <span>Trigger Detonation / Impact</span>
+        </div>
+        <div class="instruction-item">
+            <span class="key-cap">DRAG</span>
+            <span>Orbit Camera View</span>
+        </div>
+        <div class="instruction-item">
+            <span class="key-cap">SCROLL</span>
+            <span>Zoom Camera In / Out</span>
+        </div>
+    </div>
+
+    <!-- CONTROLS PANEL -->
+    <div id="controls" class="hud-panel">
+        <div class="control-group">
+            <div style="display: flex; justify-content: space-between;">
+                <span class="control-label">DETONATION FORCE</span>
+                <span id="force-val" style="color: var(--neon-cyan); font-size: 0.8rem;">45</span>
+            </div>
+            <input type="range" id="force-slider" min="10" max="100" value="45">
+        </div>
+
+        <div class="control-group">
+            <div style="display: flex; justify-content: space-between;">
+                <span class="control-label">GRAVITY SCALE</span>
+                <span id="gravity-val" style="color: var(--neon-cyan); font-size: 0.8rem;">1.0x</span>
+            </div>
+            <input type="range" id="gravity-slider" min="0" max="30" value="10">
+        </div>
+
+        <div class="control-group">
+            <span class="control-label">STRUCTURAL CONFIGURATION</span>
+            <div class="btn-container" style="grid-template-columns: 1fr 1fr 1fr;">
+                <button onclick="changePreset('tower')">TOWER</button>
+                <button onclick="changePreset('pyramid')">PYRAMID</button>
+                <button onclick="changePreset('bridge')">ARCH</button>
+            </div>
+        </div>
+
+        <div class="btn-container">
+            <button class="danger" onclick="triggerMassiveExplosion()">MASSIVE DETONATION</button>
+            <button onclick="resetSimulation()">RESET SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="hud-panel">
+        <div class="telemetry-row" style="margin-bottom: 2px;">
+            <span class="telemetry-label">COLLAPSE RATIO</span>
+            <span id="collapse-ratio-text" class="telemetry-value">0%</span>
+        </div>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- Three.js and OrbitControls via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const CONFIG = {
+            restitution: 0.25, // Bounciness
+            friction: 0.96,    // Air resistance / Ground friction
+            groundFriction: 0.92,
+            timeScale: 1.0,
+            gravity: -9.8,
+            maxParticles: 300
+        };
+
+        // --- STATE VARIABLES ---
+        let scene, camera, renderer, controls;
+        let blocks = [];
+        let particles = [];
+        let clock = new THREE.Clock();
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let currentPreset = 'tower';
+        let customGravity = -9.8;
+        let explosionForce = 45;
+        let cameraShake = 0;
+
+        // Visual Assets
+        let floorGrid;
+        let targetReticle;
+        let lights = {};
+
+        // Simulation parameters
+        let totalBlocksCount = 0;
+        let collapsedBlocksCount = 0;
+
+        // --- INITIALIZATION ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x020208, 0.015);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 25, 45);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02; //

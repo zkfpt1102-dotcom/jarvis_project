@@ -1,0 +1,46 @@
+{
+  "name": "jarvis-desktop",
+  "version": "1.0.0",
+  "description": "JARVIS Personal Desktop AI Assistant with Mood Learning & Dynamic UI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:exe": "electron-builder --win --x64"
+  },
+  "keywords": [
+    "jarvis",
+    "ai",
+    "assistant",
+    "electron"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^8.5.2",
+    "electron": "^30.0.8",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "localtunnel": "^2.0.2",
+    "msedge-tts": "^2.0.7",
+    "samsung-tv-control": "^1.14.0",
+    "systeminformation": "^5.22.0",
+    "untun": "^0.2.2"
+  },
+  "build": {
+    "appId": "com.stark.jarvis",
+    "productName": "JARVIS",
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}

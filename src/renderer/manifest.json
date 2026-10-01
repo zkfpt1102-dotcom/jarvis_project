@@ -1,0 +1,27 @@
+{
+  "name": "J.A.R.V.I.S. Personal AI Assistant",
+  "short_name": "JARVIS",
+  "id": "com.stark.jarvis.pwa",
+  "description": "최첨단 지능형 개인 AI 비서 J.A.R.V.I.S. (실시간 음성 및 PC 원격 제어)",
+  "start_url": "/?pwa=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020813",
+  "theme_color": "#00f0ff",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8649/8649605.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8649/8649605.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
